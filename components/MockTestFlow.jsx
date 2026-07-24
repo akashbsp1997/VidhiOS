@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import LockdownNotice from "./LockdownNotice.jsx";
+import { offlineFetch } from "../lib/offline/offlineFetch.js";
 
 const SIZE_LABEL = { sectional: "Sectional (5 questions, 45 min)", full: "Full paper (20 questions, 3 hours)" };
 
@@ -39,6 +40,9 @@ export default function MockTestFlow({ viewTestId }) {
   const [report, setReport] = useState(null);
   const [reportError, setReportError] = useState(null);
   const [pendingTotalMarks, setPendingTotalMarks] = useState(null);
+  // Saved to IndexedDB instead of reaching the server yet -- see
+  // lib/offline/offlineFetch.js. Only ever true with offline mode on.
+  const [finishQueued, setFinishQueued] = useState(false);
 
   useEffect(() => {
     if (mode !== "start") return;
@@ -123,10 +127,10 @@ export default function MockTestFlow({ viewTestId }) {
       for (let i = 0; i < toGrade.length; i++) {
         if (cancelled) return;
         setGradingProgress({ done: i, total: toGrade.length });
-        await fetch("/api/mock-tests/grade-question", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ mockTestId: test.mockTestId, mockTestQuestionId: toGrade[i].id, answerText: answers[toGrade[i].id] }),
+        await offlineFetch("/api/mock-tests/grade-question", {
+          mockTestId: test.mockTestId,
+          mockTestQuestionId: toGrade[i].id,
+          answerText: answers[toGrade[i].id],
         }).catch(() => {});
       }
       if (cancelled) return;
@@ -135,14 +139,10 @@ export default function MockTestFlow({ viewTestId }) {
       // inline -- see the 2026-07-24 overnight-batch-grading change), so
       // finish only closes the test out; totalScore isn't known yet, there's
       // nothing to fetch a report for until tonight's grading cron runs.
-      const res = await fetch("/api/mock-tests/finish", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ mockTestId: test.mockTestId }),
-      });
-      const finishData = await res.json();
+      const finishData = await offlineFetch("/api/mock-tests/finish", { mockTestId: test.mockTestId }).catch(() => ({}));
       if (cancelled) return;
-      setPendingTotalMarks(finishData.totalMarks);
+      setPendingTotalMarks(finishData.totalMarks ?? null);
+      setFinishQueued(!!finishData.queued);
       setMode("pending");
     }
     run();
@@ -300,9 +300,9 @@ export default function MockTestFlow({ viewTestId }) {
       <div className="card">
         <h2 style={{ marginTop: 0 }}>Test submitted</h2>
         <p className="lede" style={{ marginBottom: 0 }}>
-          ✓ Saved{pendingTotalMarks != null ? ` — ${pendingTotalMarks} marks total` : ""}. Results are ready after
-          tonight's grading run — check back tomorrow morning, or revisit this test from "Your past mock tests"
-          below.
+          {finishQueued
+            ? "✓ Saved on this device — you're offline, so your answers will sync automatically next time you have a connection, then get graded that night."
+            : `✓ Saved${pendingTotalMarks != null ? ` — ${pendingTotalMarks} marks total` : ""}. Results are ready after tonight's grading run — check back tomorrow morning, or revisit this test from "Your past mock tests" below.`}
         </p>
         <a className="btn btn-primary" href="/mock-tests" style={{ marginTop: 12 }}>
           Back to mock tests →

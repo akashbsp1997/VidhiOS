@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import ModelAnswerPanel from "./ModelAnswerPanel.jsx";
+import { offlineFetch } from "../lib/offline/offlineFetch.js";
 
 // Every question here is generated (content-first, see the 2026-07-24
 // change) -- questionSource is always "model" now, "generate" was a
@@ -15,6 +16,10 @@ export default function PracticeSession({ forcedSubtopicId, subtopicLabel }) {
   // grading change) -- `submitted` just tracks "this answer is saved,"
   // there's no feedback/mastery to hold onto from the POST response anymore.
   const [submitted, setSubmitted] = useState(false);
+  // Saved to IndexedDB instead of reaching the server yet -- see
+  // lib/offline/offlineFetch.js. Only ever true when
+  // NEXT_PUBLIC_OFFLINE_MODE_ENABLED is on; false path is unaffected.
+  const [queued, setQueued] = useState(false);
   const [loading, setLoading] = useState(true);
   const [grading, setGrading] = useState(false);
   // Separate states, deliberately -- a "picking a question" failure (no
@@ -33,6 +38,7 @@ export default function PracticeSession({ forcedSubtopicId, subtopicLabel }) {
     setLoadError(null);
     setGradingError(null);
     setSubmitted(false);
+    setQueued(false);
     setAnswerText("");
     const qs = forcedSubtopicId ? `?subtopicId=${encodeURIComponent(forcedSubtopicId)}` : "";
     fetch(`/api/attempt${qs}`)
@@ -57,23 +63,21 @@ export default function PracticeSession({ forcedSubtopicId, subtopicLabel }) {
     if (!question || !answerText.trim()) return;
     setGrading(true);
     setGradingError(null);
-    fetch("/api/attempt", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        subtopicId: question.subtopicId,
-        questionSource: question.questionSource,
-        questionRefId: question.questionRefId,
-        questionTextSnapshot: question.questionText,
-        difficultyTier: question.tier,
-        marks: question.marks,
-        answerText,
-      }),
+    offlineFetch("/api/attempt", {
+      subtopicId: question.subtopicId,
+      questionSource: question.questionSource,
+      questionRefId: question.questionRefId,
+      questionTextSnapshot: question.questionText,
+      difficultyTier: question.tier,
+      marks: question.marks,
+      answerText,
     })
-      .then((r) => r.json())
       .then((data) => {
         if (data.error) setGradingError(data.error);
-        else setSubmitted(true);
+        else {
+          setSubmitted(true);
+          setQueued(!!data.queued);
+        }
       })
       .catch((e) => setGradingError(e.message))
       .finally(() => setGrading(false));
@@ -141,8 +145,9 @@ export default function PracticeSession({ forcedSubtopicId, subtopicLabel }) {
         {submitted && (
           <div style={{ marginTop: 10 }}>
             <p className="lede" style={{ marginBottom: 0 }}>
-              ✓ Saved — you'll get your score and feedback after tonight's grading run. Your mastery and difficulty
-              tier for this subtopic will update then too.
+              {queued
+                ? "✓ Saved on this device — you're offline, so it'll sync automatically next time you have a connection, then get graded that night."
+                : "✓ Saved — you'll get your score and feedback after tonight's grading run. Your mastery and difficulty tier for this subtopic will update then too."}
             </p>
             <button className="btn btn-primary" onClick={loadNext} style={{ marginTop: 12 }}>
               Next question →

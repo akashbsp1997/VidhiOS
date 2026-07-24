@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import LockdownNotice from "./LockdownNotice.jsx";
+import { offlineFetch } from "../lib/offline/offlineFetch.js";
 
 function wordCount(text) {
   return text.trim() ? text.trim().split(/\s+/).length : 0;
@@ -27,6 +28,9 @@ export default function EssayWorkspace() {
   const [essayText, setEssayText] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
+  // Saved to IndexedDB instead of reaching the server yet -- see
+  // lib/offline/offlineFetch.js. Only ever true with offline mode on.
+  const [queued, setQueued] = useState(false);
 
   useEffect(() => {
     if (mode !== "browse") return;
@@ -42,6 +46,7 @@ export default function EssayWorkspace() {
     setShowGuide(false);
     setEssayText("");
     setResult(null);
+    setQueued(false);
     setMode("write");
   }
 
@@ -72,12 +77,7 @@ export default function EssayWorkspace() {
 
   function submitEssay() {
     setSubmitting(true);
-    fetch("/api/essay-attempt", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ topicId: topic.id, essayText }),
-    })
-      .then((r) => r.json())
+    offlineFetch("/api/essay-attempt", { topicId: topic.id, essayText })
       .then((d) => {
         if (d.error === "locked_down") setLockdown(d);
         else if (d.error) setError(d.error);
@@ -85,8 +85,10 @@ export default function EssayWorkspace() {
         // 2026-07-24 overnight-batch-grading change) -- d.feedback only
         // comes back if this ever sends gradeNow:true, which it doesn't
         // today (that's reserved for components/EssayTournament.jsx).
-        else if (d.pending) setMode("pending");
-        else {
+        else if (d.pending || d.queued) {
+          setQueued(!!d.queued);
+          setMode("pending");
+        } else {
           setResult(d.feedback);
           setMode("result");
         }
@@ -200,7 +202,9 @@ export default function EssayWorkspace() {
     return (
       <div className="card">
         <p className="lede" style={{ marginBottom: 12 }}>
-          ✓ Saved — you'll get your score and feedback after tonight's grading run.
+          {queued
+            ? "✓ Saved on this device — you're offline, so it'll sync automatically next time you have a connection, then get graded that night."
+            : "✓ Saved — you'll get your score and feedback after tonight's grading run."}
         </p>
         <button className="btn btn-primary" onClick={() => setMode("browse")}>
           Choose another topic →

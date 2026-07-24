@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { offlineFetch } from "../lib/offline/offlineFetch.js";
 
 const RATING_BUTTONS = [
   { key: "again", label: "Again", hint: "didn't recall it" },
@@ -37,16 +38,13 @@ export default function FlashcardSession() {
   function rate(quality) {
     const card = cards[index];
     setRating(true);
-    fetch("/api/flashcards", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ cardId: card.id, subtopicId: card.subtopicId, quality }),
-    })
+    offlineFetch("/api/flashcards", { cardId: card.id, subtopicId: card.subtopicId, quality })
       .then(() => {
         setRevealed(false);
         if (index + 1 >= cards.length) setDone(true);
         else setIndex((i) => i + 1);
       })
+      .catch(() => {})
       .finally(() => setRating(false));
   }
 

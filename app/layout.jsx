@@ -1,10 +1,13 @@
 import "./globals.css";
 import LogoutButton from "../components/LogoutButton.jsx";
+import OfflineSupport from "../components/OfflineSupport.jsx";
+import OfflineStatusChip from "../components/OfflineStatusChip.jsx";
 import { getSessionUserId } from "../lib/supabase/server.js";
 
 export const metadata = {
   title: "VidhiOS Adaptive — Law Optional Mastery Engine",
   description: "Subtopic-by-subtopic adaptive practice for UPSC CSE Law Optional, grounded in official sources and real PYQs.",
+  manifest: "/manifest.json",
 };
 
 export default async function RootLayout({ children }) {
@@ -36,11 +39,13 @@ export default async function RootLayout({ children }) {
                 <a href="/flashcards">Flashcards</a>
                 <a href="/interview">Interview</a>
                 <LogoutButton />
+                <OfflineStatusChip />
               </nav>
             )}
           </div>
         </header>
         <div className="shell">{children}</div>
+        <OfflineSupport />
       </body>
     </html>
   );
