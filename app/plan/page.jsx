@@ -154,7 +154,10 @@ export default function PlanPage() {
         {data.days.map((d) => (
           <div className="subtopic-row" key={d.day} style={{ gridTemplateColumns: "90px 70px 1fr", opacity: d.day < data.todayDayNumber ? 0.6 : 1 }}>
             <span className="subtopic-code">{formatDate(data.planStartDate, d.day)}</span>
-            <span className={`day-type-pill day-type-${d.type}`}>{DAY_TYPE_LABEL[d.type]}</span>
+            <span className={`day-type-pill day-type-${d.type}`}>
+              {DAY_TYPE_LABEL[d.type]}
+              {d.dayComplete === true ? " ✓" : ""}
+            </span>
             <span className="subtopic-text">
               {d.topics.length === 0 ? (
                 <span style={{ color: "var(--ink-soft)", fontSize: 12.5 }}>
@@ -173,6 +176,14 @@ export default function PlanPage() {
                       ({t.subjectDisplayName}
                       {t.totalSpanDays > 1 ? ` · day ${t.dayOfSpan} of ${t.totalSpanDays}` : ""})
                     </span>
+                    {t.answered === true && (
+                      <span style={{ marginLeft: 8, fontSize: 11, color: "var(--accent-ok, #2a9d5c)" }}>✓ answered</span>
+                    )}
+                    {t.answered === false && (
+                      <a href={`/practice/${t.id}`} style={{ marginLeft: 8, fontSize: 11.5 }}>
+                        Write your answer →
+                      </a>
+                    )}
                   </div>
                 ))
               )}
