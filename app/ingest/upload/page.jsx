@@ -9,6 +9,7 @@ const DOC_TYPES = [
   { value: "pyq_paper", label: "PYQ paper" },
   { value: "ncert_chapter", label: "NCERT chapter" },
   { value: "newspaper_clipping", label: "Newspaper / current-affairs clipping" },
+  { value: "external_source", label: "External source (govt report, reference book, etc.)" },
 ];
 
 const STATUS_COLOR = {

@@ -6,7 +6,7 @@ import { randomUUID } from "node:crypto";
 import { db } from "../../../../lib/db.js";
 import { subjects } from "../../../../db/schema.js";
 import { createAdminClient } from "../../../../lib/supabase/adminClient.js";
-import { isValidDocType } from "../../../../lib/ingest/docTypes.js";
+import { isValidDocType, INGEST_DOC_TYPES } from "../../../../lib/ingest/docTypes.js";
 
 const BUCKET = "ingest-uploads";
 
@@ -27,7 +27,7 @@ export async function POST(request) {
   try {
     const { docType, subjectId, filename } = await request.json();
     if (!isValidDocType(docType)) {
-      return NextResponse.json({ error: `docType must be one of: syllabus, pyq_paper, ncert_chapter, newspaper_clipping` }, { status: 400 });
+      return NextResponse.json({ error: `docType must be one of: ${INGEST_DOC_TYPES.join(", ")}` }, { status: 400 });
     }
     if (!subjectId || typeof filename !== "string" || !filename) {
       return NextResponse.json({ error: "subjectId and filename are required" }, { status: 400 });
