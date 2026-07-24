@@ -71,6 +71,11 @@ export default function IngestUploadPage() {
 
   const [structuringId, setStructuringId] = useState(null);
   const [structureResult, setStructureResult] = useState({}); // uploadId -> { itemCount, textTruncatedForAi } | { error }
+  // Distinct from structuringId -- that's "one chunk in flight" (a single
+  // click), this is "the auto-advance loop below is running" (many chunks,
+  // one after another). Both gate the same buttons so a manual click can't
+  // race an auto-run for the same upload.
+  const [autoStructuringId, setAutoStructuringId] = useState(null);
 
   function loadUploads() {
     safeFetchJson(`/api/ingest/uploads?key=${encodeURIComponent(key)}`)
@@ -83,21 +88,52 @@ export default function IngestUploadPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
 
+  async function structureOneChunk(uploadId) {
+    const data = await safeFetchJson(`/api/ingest/structure?key=${encodeURIComponent(key)}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ uploadId }),
+    });
+    setStructureResult((prev) => ({ ...prev, [uploadId]: data.error ? { error: data.error } : data }));
+    return data;
+  }
+
   async function structureNow(uploadId) {
     setStructuringId(uploadId);
     setStructureResult((prev) => ({ ...prev, [uploadId]: undefined }));
     try {
-      const data = await safeFetchJson(`/api/ingest/structure?key=${encodeURIComponent(key)}`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ uploadId }),
-      });
-      setStructureResult((prev) => ({ ...prev, [uploadId]: data.error ? { error: data.error } : data }));
+      await structureOneChunk(uploadId);
       loadUploads();
     } catch (err) {
       setStructureResult((prev) => ({ ...prev, [uploadId]: { error: err.message } }));
     } finally {
       setStructuringId(null);
+    }
+  }
+
+  // Loops structureOneChunk until the document's last chunk comes back
+  // done:true, instead of requiring one click per ~15-40k-character section
+  // -- the real bottleneck at real-document-batch scale (a single NCERT
+  // textbook or PYQ compilation can be a dozen-plus chunks). Each call
+  // already reads the upload's chunksProcessed fresh from the DB, so
+  // sequential awaited calls are safe -- no risk of skipping or repeating a
+  // section. Stops (rather than retrying) on the first error, same as a
+  // manual click would leave it -- the upload's status becomes "error" and
+  // the existing "Retry structuring" button picks up from there.
+  async function structureAll(uploadId) {
+    setAutoStructuringId(uploadId);
+    try {
+      let done = false;
+      while (!done) {
+        const data = await structureOneChunk(uploadId);
+        if (data.error) break;
+        done = data.done;
+      }
+    } catch (err) {
+      setStructureResult((prev) => ({ ...prev, [uploadId]: { error: err.message } }));
+    } finally {
+      setAutoStructuringId(null);
+      loadUploads();
     }
   }
 
@@ -337,20 +373,31 @@ export default function IngestUploadPage() {
                 </div>
               )}
               {(u.status === "extracted" || u.status === "error") && (
-                <button
-                  className="btn"
-                  style={{ marginTop: 8, padding: "6px 12px", fontSize: 13 }}
-                  onClick={() => structureNow(u.id)}
-                  disabled={structuringId === u.id}
-                >
-                  {structuringId === u.id
-                    ? "Structuring…"
-                    : u.status === "error"
-                    ? "Retry structuring"
-                    : u.chunksProcessed > 0
-                    ? `Structure next section (${u.chunksProcessed + 1} of ${u.totalChunks})`
-                    : "Structure with AI"}
-                </button>
+                <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+                  <button
+                    className="btn"
+                    style={{ padding: "6px 12px", fontSize: 13 }}
+                    onClick={() => structureNow(u.id)}
+                    disabled={structuringId === u.id || autoStructuringId === u.id}
+                  >
+                    {structuringId === u.id
+                      ? "Structuring…"
+                      : u.status === "error"
+                      ? "Retry structuring"
+                      : u.chunksProcessed > 0
+                      ? `Structure next section (${u.chunksProcessed + 1} of ${u.totalChunks})`
+                      : "Structure with AI"}
+                  </button>
+                  <button
+                    className="btn"
+                    style={{ padding: "6px 12px", fontSize: 13 }}
+                    onClick={() => structureAll(u.id)}
+                    disabled={structuringId === u.id || autoStructuringId === u.id}
+                    title="Runs every remaining section one after another, no need to click per section"
+                  >
+                    {autoStructuringId === u.id ? "Auto-structuring… (see progress below)" : "Structure all sections"}
+                  </button>
+                </div>
               )}
               {structureResult[u.id] &&
                 (structureResult[u.id].error ? (
