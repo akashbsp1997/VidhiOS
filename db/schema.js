@@ -619,6 +619,15 @@ export const playerState = pgTable("player_state", {
   longestStreakDays: integer("longest_streak_days").notNull().default(0),
   lastActivityDate: text("last_activity_date"), // 'YYYY-MM-DD', null before the first mission is ever completed
   lockdownGraceUntil: timestamp("lockdown_grace_until"),
+  // 'starting_out' | 'beginner' | 'advanced' | 'fastforward' -- assigned by
+  // the mandatory placement quiz at onboarding (see
+  // db/seed/placementQuiz.js, app/api/onboarding/route.js), null before the
+  // quiz is completed. Drives which fixed 7-day curriculum
+  // (db/seed/onboardingWeekPlans.js) a new student sees for days 0-6. Can
+  // change later via self-select once xp clears TRACK_SWITCH_XP_THRESHOLD
+  // (app/api/onboarding/route.js) -- trackSetAt records when it was last set.
+  track: text("track"),
+  trackSetAt: timestamp("track_set_at"),
 });
 
 /**

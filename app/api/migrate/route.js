@@ -60,7 +60,8 @@ export async function GET(request) {
           (table_name = 'mastery' and column_name = 'self_status') or
           (table_name = 'model_questions' and column_name = 'format') or
           (table_name = 'model_questions' and column_name = 'correct_index') or
-          (table_name = 'mastery' and column_name = 'unlock_override_until')
+          (table_name = 'mastery' and column_name = 'unlock_override_until') or
+          (table_name = 'player_state' and column_name = 'track')
         )
       order by table_name, column_name
     `);
