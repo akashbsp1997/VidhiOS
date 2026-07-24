@@ -118,7 +118,7 @@ export async function POST(request) {
     const lockdown = await checkLockdown(userId);
     if (lockdown) return NextResponse.json({ error: "locked_down", ...lockdown }, { status: 403 });
 
-    const { subjectId, size } = await request.json();
+    const { subjectId, size, subtopicIds: requestedSubtopicIds } = await request.json();
     if (!SIZE_CONFIG[size]) return NextResponse.json({ error: "size must be 'sectional' or 'full'" }, { status: 400 });
     if (!(await isSubjectUnlocked(userId, subjectId))) {
       return NextResponse.json({ error: "subject_locked" }, { status: 403 });
@@ -126,11 +126,25 @@ export async function POST(request) {
 
     const { questionCount, durationMinutes } = SIZE_CONFIG[size];
 
-    const subjectSubtopics = await db.select().from(subtopics).where(eq(subtopics.subjectId, subjectId));
+    let subjectSubtopics = await db.select().from(subtopics).where(eq(subtopics.subjectId, subjectId));
     if (!subjectSubtopics.length) {
       return NextResponse.json({ error: "This subject has no content yet." }, { status: 404 });
     }
-    const subtopicIds = subjectSubtopics.map((s) => s.id);
+    // Part E5: an optional caller-supplied subset -- e.g. "test me on just
+    // what the fixed onboarding week covered" (see
+    // db/seed/onboardingWeekPlans.js) -- narrows the pool to exactly those
+    // subtopics instead of the whole subject. Still one subjectId per test
+    // (unchanged schema); a week spanning PSIR + GS needs one call per
+    // subject, same as any other multi-subject test today.
+    if (Array.isArray(requestedSubtopicIds) && requestedSubtopicIds.length) {
+      const requestedSet = new Set(requestedSubtopicIds);
+      const scoped = subjectSubtopics.filter((s) => requestedSet.has(s.id));
+      if (!scoped.length) {
+        return NextResponse.json({ error: "None of the given subtopicIds belong to this subject." }, { status: 400 });
+      }
+      subjectSubtopics = scoped;
+    }
+    const poolSubtopicIds = subjectSubtopics.map((s) => s.id);
 
     // Real PYQs first -- more authentic than an AI-generated question, and
     // free (no generation call). One candidate per PYQ even if it tags
@@ -138,7 +152,7 @@ export async function POST(request) {
     const allPyqs = await db.select().from(pyqs);
     const pyqCandidates = [];
     for (const q of allPyqs) {
-      const matchedSubtopic = q.topics.find((t) => subtopicIds.includes(t));
+      const matchedSubtopic = q.topics.find((t) => poolSubtopicIds.includes(t));
       if (matchedSubtopic) {
         pyqCandidates.push({ subtopicId: matchedSubtopic, questionSource: "pyq", questionRefId: String(q.id), questionText: q.questionText, marks: q.marks });
       }

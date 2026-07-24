@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { dateForDayNumber } from "../../lib/adaptive/planEngine.js";
+import { TRACKS } from "../../db/seed/placementQuiz.js";
 
 const DAY_TYPE_LABEL = { learn: "Learn", test: "Test", revise: "Revise" };
 const DAY_TYPE_HINT = {
@@ -9,9 +10,113 @@ const DAY_TYPE_HINT = {
   test: "Attempt adaptive practice covering what you learned this week.",
   revise: "Revisit your weakest topics learned so far.",
 };
+const TRACK_LABEL = { starting_out: "Starting Out", beginner: "Beginner", advanced: "Advanced", fastforward: "Fast Forward" };
 
 function formatDate(planStartDate, day) {
   return dateForDayNumber(new Date(planStartDate), day).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+}
+
+// Shows the student's current onboarding track and, once enough XP has been
+// earned (lib/gamification/missions.js's TRACK_SWITCH_XP_THRESHOLD), a
+// picker to self-select a different one -- reuses the existing xp field as
+// the unlock gate rather than a separate currency (see
+// app/api/player/track/route.js).
+// Mirrors lib/gamification/missions.js's TRACK_SWITCH_XP_THRESHOLD -- that
+// module isn't safe to import client-side (it touches the DB), so the
+// number is duplicated here; GET /api/missions doesn't currently surface the
+// threshold itself since it's a fixed constant, not per-user state.
+const TRACK_SWITCH_XP_THRESHOLD = 200;
+
+function TrackCard() {
+  const [playerState, setPlayerState] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+
+  const load = () => {
+    fetch("/api/missions")
+      .then((r) => r.json())
+      .then((d) => {
+        if (!d.error) setPlayerState(d.playerState);
+      });
+  };
+  useEffect(load, []);
+
+  if (!playerState?.track) return null; // pre-E1 accounts / quiz never completed -- nothing to show
+
+  const canSwitch = playerState.xp >= TRACK_SWITCH_XP_THRESHOLD;
+
+  function changeTrack(track) {
+    setSaving(true);
+    setError(null);
+    fetch("/api/player/track", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ track }),
+    })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.error) setError(d.error);
+        else load();
+      })
+      .catch((e) => setError(e.message))
+      .finally(() => setSaving(false));
+  }
+
+  return (
+    <div className="card">
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+        <span style={{ fontSize: 13 }}>
+          🎯 Track: <b>{TRACK_LABEL[playerState.track] ?? playerState.track}</b> · {playerState.xp} XP
+        </span>
+        {!canSwitch && (
+          <span style={{ fontSize: 12, color: "var(--ink-soft)" }}>Earn 200 XP to unlock changing tracks</span>
+        )}
+      </div>
+      {canSwitch && (
+        <div className="segmented" style={{ marginTop: 10 }}>
+          {TRACKS.map((t) => (
+            <button key={t} className={`seg${playerState.track === t ? " active" : ""}`} disabled={saving} onClick={() => changeTrack(t)}>
+              {TRACK_LABEL[t]}
+            </button>
+          ))}
+        </div>
+      )}
+      {error && <div className="error-box" style={{ marginTop: 8 }}>{error}</div>}
+    </div>
+  );
+}
+
+// Part E5's "game score" card for the fixed 7-day onboarding week --
+// GET /api/onboarding/week-summary assembles it entirely from existing data
+// (missions, attempts, mock tests), so this just renders whatever comes
+// back. Renders nothing until the student both has a fixed week (a track
+// was assigned) and has actually reached day 7.
+function WeekOneSummaryCard() {
+  const [summary, setSummary] = useState(null);
+
+  useEffect(() => {
+    fetch("/api/onboarding/week-summary")
+      .then((r) => r.json())
+      .then((d) => {
+        if (!d.error) setSummary(d);
+      });
+  }, []);
+
+  if (!summary?.hasFixedWeek || !summary.eligible) return null;
+
+  return (
+    <div className="card">
+      <p style={{ fontWeight: 600, marginBottom: 8 }}>🏁 Week 1 complete!</p>
+      <p className="lede" style={{ marginBottom: 8 }}>
+        {summary.daysCompleted}/{summary.totalLearnDays} days answered · {summary.missionsCompleted} missions done ·{" "}
+        {summary.xpEarnedThisWeek} XP earned this week ({summary.totalXp} XP total) · {summary.currentStreakDays}-day streak
+        {summary.weeklyTestScorePct != null ? ` · weekly test: ${summary.weeklyTestScorePct}%` : ""}
+      </p>
+      <p style={{ fontSize: 12.5, color: "var(--ink-soft)", marginBottom: 0 }}>
+        From here, your plan adapts weekly to how your real answers and tests go.
+      </p>
+    </div>
+  );
 }
 
 // The day-wise 1-year tracker (Piece B of the "1-year strategy" request) --
@@ -76,11 +181,25 @@ export default function PlanPage() {
         progress and content — not AI-generated, and it re-adjusts automatically as more GS papers unlock.
       </p>
 
+      <TrackCard />
+      <WeekOneSummaryCard />
+
+      {data.weeklyAdjustmentNote && (
+        <div className="card">
+          <p className="lede" style={{ marginBottom: 0, fontSize: 13 }}>
+            🧭 Based on last week: {data.weeklyAdjustmentNote}
+          </p>
+        </div>
+      )}
+
       <div className="card">
         {data.days.map((d) => (
           <div className="subtopic-row" key={d.day} style={{ gridTemplateColumns: "90px 70px 1fr", opacity: d.day < data.todayDayNumber ? 0.6 : 1 }}>
             <span className="subtopic-code">{formatDate(data.planStartDate, d.day)}</span>
-            <span className={`day-type-pill day-type-${d.type}`}>{DAY_TYPE_LABEL[d.type]}</span>
+            <span className={`day-type-pill day-type-${d.type}`}>
+              {DAY_TYPE_LABEL[d.type]}
+              {d.dayComplete === true ? " ✓" : ""}
+            </span>
             <span className="subtopic-text">
               {d.topics.length === 0 ? (
                 <span style={{ color: "var(--ink-soft)", fontSize: 12.5 }}>
@@ -95,7 +214,18 @@ export default function PlanPage() {
                 d.topics.map((t) => (
                   <div key={t.id}>
                     <a href={`/learn/${t.id}`}>{t.topicText}</a>{" "}
-                    <span style={{ fontSize: 11, color: "var(--ink-soft)" }}>({t.subjectDisplayName})</span>
+                    <span style={{ fontSize: 11, color: "var(--ink-soft)" }}>
+                      ({t.subjectDisplayName}
+                      {t.totalSpanDays > 1 ? ` · day ${t.dayOfSpan} of ${t.totalSpanDays}` : ""})
+                    </span>
+                    {t.answered === true && (
+                      <span style={{ marginLeft: 8, fontSize: 11, color: "var(--accent-ok, #2a9d5c)" }}>✓ answered</span>
+                    )}
+                    {t.answered === false && (
+                      <a href={`/practice/${t.id}`} style={{ marginLeft: 8, fontSize: 11.5 }}>
+                        Write your answer →
+                      </a>
+                    )}
                   </div>
                 ))
               )}

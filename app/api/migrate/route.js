@@ -60,14 +60,15 @@ export async function GET(request) {
           (table_name = 'mastery' and column_name = 'self_status') or
           (table_name = 'model_questions' and column_name = 'format') or
           (table_name = 'model_questions' and column_name = 'correct_index') or
-          (table_name = 'mastery' and column_name = 'unlock_override_until')
+          (table_name = 'mastery' and column_name = 'unlock_override_until') or
+          (table_name = 'player_state' and column_name = 'track')
         )
       order by table_name, column_name
     `);
     const tables = await db.execute(sql`
       select table_name from information_schema.tables
       where table_schema = 'public'
-        and table_name in ('subjects', 'ingest_uploads', 'ingest_items', 'lesson_modules', 'subject_unlocks', 'mock_tests', 'mock_test_questions', 'flashcard_reviews', 'current_affairs_items', 'interview_profiles', 'interview_sessions', 'essay_topics', 'essay_guides', 'essay_attempts', 'question_model_answers', 'player_state', 'player_items', 'daily_mission_log', 'pace_checkpoints', 'monthly_digests', 'daily_results_digests', 'quant_lessons')
+        and table_name in ('subjects', 'ingest_uploads', 'ingest_items', 'lesson_modules', 'subject_unlocks', 'mock_tests', 'mock_test_questions', 'flashcard_reviews', 'current_affairs_items', 'interview_profiles', 'interview_sessions', 'essay_topics', 'essay_guides', 'essay_attempts', 'question_model_answers', 'player_state', 'player_items', 'daily_mission_log', 'pace_checkpoints', 'monthly_digests', 'daily_results_digests', 'quant_lessons', 'weekly_plan_adjustments')
     `);
     const compressedCols = await db.execute(sql`
       select table_name, column_name, data_type
@@ -94,6 +95,7 @@ export async function GET(request) {
       monthlyDigestsTableExists: tableNames.includes("monthly_digests"),
       dailyResultsDigestsTableExists: tableNames.includes("daily_results_digests"),
       quantLessonsTableExists: tableNames.includes("quant_lessons"),
+      weeklyPlanAdjustmentsTableExists: tableNames.includes("weekly_plan_adjustments"),
       gamificationTablesExist: tableNames.includes("player_state") && tableNames.includes("player_items") && tableNames.includes("daily_mission_log"),
       ingestTablesFound: tableNames.filter((n) => n.startsWith("ingest_")),
       newColumnsFound: cols.map((r) => `${r.table_name}.${r.column_name}`),
