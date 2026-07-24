@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { dateForDayNumber } from "../../lib/adaptive/planEngine.js";
 import { TRACKS } from "../../db/seed/placementQuiz.js";
+import { syncForOffline } from "../../lib/offline/syncForOffline.js";
 
 const DAY_TYPE_LABEL = { learn: "Learn", test: "Test", revise: "Revise" };
 const DAY_TYPE_HINT = {
@@ -119,6 +120,39 @@ function WeekOneSummaryCard() {
   );
 }
 
+// Manual trigger for lib/offline/syncForOffline.js's prefetch walker --
+// bypasses its own throttle (the automatic mount-time sync in
+// components/OfflineSupport.jsx only runs at most every 6h) since this is
+// an explicit "sync right now" request. Hidden entirely unless
+// NEXT_PUBLIC_OFFLINE_MODE_ENABLED is on, matching every other offline-mode
+// UI piece in this app.
+function SyncForOfflineButton() {
+  const [syncing, setSyncing] = useState(false);
+  const [resultMessage, setResultMessage] = useState(null); // null while idle/never run
+
+  if (process.env.NEXT_PUBLIC_OFFLINE_MODE_ENABLED !== "true") return null;
+
+  function runSync() {
+    setSyncing(true);
+    setResultMessage(null);
+    syncForOffline()
+      .then((count) => setResultMessage(count > 0 ? `Synced ${count} topic${count === 1 ? "" : "s"} for offline` : "Already up to date"))
+      .catch(() => setResultMessage("Couldn't sync — try again once you have a connection"))
+      .finally(() => setSyncing(false));
+  }
+
+  return (
+    <div className="card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+      <span style={{ fontSize: 13 }}>
+        📥 {resultMessage ?? "Preload your next 7 days' lessons and practice questions so they still work with no connection."}
+      </span>
+      <button className="btn" onClick={runSync} disabled={syncing}>
+        {syncing ? "Syncing…" : "Sync for offline"}
+      </button>
+    </div>
+  );
+}
+
 // The day-wise 1-year tracker (Piece B of the "1-year strategy" request) --
 // a computed, not AI-generated, schedule (see lib/adaptive/planEngine.js).
 // Starts by showing a 2-week window around today; "Load more" extends it
@@ -183,6 +217,7 @@ export default function PlanPage() {
 
       <TrackCard />
       <WeekOneSummaryCard />
+      <SyncForOfflineButton />
 
       {data.weeklyAdjustmentNote && (
         <div className="card">
