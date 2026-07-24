@@ -86,6 +86,39 @@ function TrackCard() {
   );
 }
 
+// Part E5's "game score" card for the fixed 7-day onboarding week --
+// GET /api/onboarding/week-summary assembles it entirely from existing data
+// (missions, attempts, mock tests), so this just renders whatever comes
+// back. Renders nothing until the student both has a fixed week (a track
+// was assigned) and has actually reached day 7.
+function WeekOneSummaryCard() {
+  const [summary, setSummary] = useState(null);
+
+  useEffect(() => {
+    fetch("/api/onboarding/week-summary")
+      .then((r) => r.json())
+      .then((d) => {
+        if (!d.error) setSummary(d);
+      });
+  }, []);
+
+  if (!summary?.hasFixedWeek || !summary.eligible) return null;
+
+  return (
+    <div className="card">
+      <p style={{ fontWeight: 600, marginBottom: 8 }}>🏁 Week 1 complete!</p>
+      <p className="lede" style={{ marginBottom: 8 }}>
+        {summary.daysCompleted}/{summary.totalLearnDays} days answered · {summary.missionsCompleted} missions done ·{" "}
+        {summary.xpEarnedThisWeek} XP earned this week ({summary.totalXp} XP total) · {summary.currentStreakDays}-day streak
+        {summary.weeklyTestScorePct != null ? ` · weekly test: ${summary.weeklyTestScorePct}%` : ""}
+      </p>
+      <p style={{ fontSize: 12.5, color: "var(--ink-soft)", marginBottom: 0 }}>
+        From here, your plan adapts weekly to how your real answers and tests go.
+      </p>
+    </div>
+  );
+}
+
 // The day-wise 1-year tracker (Piece B of the "1-year strategy" request) --
 // a computed, not AI-generated, schedule (see lib/adaptive/planEngine.js).
 // Starts by showing a 2-week window around today; "Load more" extends it
@@ -149,6 +182,7 @@ export default function PlanPage() {
       </p>
 
       <TrackCard />
+      <WeekOneSummaryCard />
 
       {data.weeklyAdjustmentNote && (
         <div className="card">
