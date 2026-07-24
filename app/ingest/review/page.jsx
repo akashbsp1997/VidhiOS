@@ -83,6 +83,11 @@ export default function IngestReviewPage() {
   const [edits, setEdits] = useState({}); // itemId -> partial data overrides
   const [busyId, setBusyId] = useState(null);
   const [actionErrors, setActionErrors] = useState({}); // itemId -> message
+  // Bulk-approve progress (see bulkApproveHighConfidence below) -- separate
+  // from busyId/actionErrors, which track one-at-a-time manual actions.
+  const [bulkRunning, setBulkRunning] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState(null); // { done, total }
+  const [bulkSummary, setBulkSummary] = useState(null);
 
   function load() {
     safeFetchJson(`/api/ingest/review?key=${encodeURIComponent(key)}`)
@@ -125,6 +130,45 @@ export default function IngestReviewPage() {
     }
   }
 
+  // Approves every currently-listed high-confidence item, sequentially
+  // (one commit at a time, same as a manual click would do) -- reuses the
+  // exact same /api/ingest/review/action endpoint act() uses above, but
+  // calls it directly instead of going through act() so this doesn't
+  // reload the full item list after every single approval (wasteful at
+  // real batch sizes -- hundreds of items would mean hundreds of reloads).
+  // A per-item commit failure (e.g. an unmatched source excerpt) is left
+  // pending with its real commitError, same as the manual flow -- surfaced
+  // once the single reload at the end picks it back up.
+  async function bulkApproveHighConfidence() {
+    const eligible = items.filter((item) => currentData(item).confidence === "high");
+    if (!eligible.length) return;
+    setBulkRunning(true);
+    setBulkSummary(null);
+    let approved = 0;
+    for (let i = 0; i < eligible.length; i++) {
+      setBulkProgress({ done: i, total: eligible.length });
+      const item = eligible[i];
+      const hasEdits = edits[item.id] && Object.keys(edits[item.id]).length > 0;
+      try {
+        const data = await safeFetchJson(`/api/ingest/review/action?key=${encodeURIComponent(key)}`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ itemId: item.id, action: "approve", editedData: hasEdits ? currentData(item) : undefined }),
+        });
+        if (data.ok) approved++;
+      } catch {
+        // left pending -- the reload below will show its real state
+      }
+    }
+    setBulkProgress({ done: eligible.length, total: eligible.length });
+    setBulkSummary(
+      `Approved ${approved} of ${eligible.length} high-confidence item(s).` +
+        (approved < eligible.length ? " The rest are still pending — check their error message below." : "")
+    );
+    setBulkRunning(false);
+    load();
+  }
+
   if (!key) {
     return (
       <div className="card">
@@ -139,10 +183,24 @@ export default function IngestReviewPage() {
   if (error) return <div className="error-box">{error}</div>;
   if (!items) return <div className="loading">Loading…</div>;
 
+  const highConfidenceCount = items.filter((item) => currentData(item).confidence === "high").length;
+
   return (
     <div className="card">
       <h1>Review content</h1>
       <p className="lede">Edit anything that's wrong, then approve or reject. Nothing here is live until you approve it.</p>
+
+      {highConfidenceCount > 0 && (
+        <div className="card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+          <span style={{ fontSize: 13 }}>
+            {bulkSummary ?? `${highConfidenceCount} item(s) are high-confidence -- approve them all at once instead of one by one.`}
+            {bulkRunning && bulkProgress && ` (${bulkProgress.done}/${bulkProgress.total})`}
+          </span>
+          <button className="btn btn-primary" onClick={bulkApproveHighConfidence} disabled={bulkRunning}>
+            {bulkRunning ? "Approving…" : `Approve all high-confidence (${highConfidenceCount})`}
+          </button>
+        </div>
+      )}
 
       {items.length === 0 && <p style={{ fontSize: 13.5, color: "var(--ink-soft)" }}>Nothing pending review.</p>}
 
@@ -208,10 +266,10 @@ export default function IngestReviewPage() {
             )}
 
             <div style={{ display: "flex", gap: 8 }}>
-              <button className="btn btn-primary" onClick={() => act(item, "approve")} disabled={busyId === item.id}>
+              <button className="btn btn-primary" onClick={() => act(item, "approve")} disabled={busyId === item.id || bulkRunning}>
                 {busyId === item.id ? "Working…" : (item.commitError ? "Retry approve" : "Approve")}
               </button>
-              <button className="btn" onClick={() => act(item, "reject")} disabled={busyId === item.id}>
+              <button className="btn" onClick={() => act(item, "reject")} disabled={busyId === item.id || bulkRunning}>
                 Reject
               </button>
             </div>

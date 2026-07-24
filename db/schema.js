@@ -145,7 +145,7 @@ export const sources = pgTable("sources", {
  */
 export const ingestUploads = pgTable("ingest_uploads", {
   id: serial("id").primaryKey(),
-  docType: text("doc_type").notNull(), // 'syllabus' | 'pyq_paper' | 'ncert_chapter' | 'newspaper_clipping'
+  docType: text("doc_type").notNull(), // see lib/ingest/docTypes.js's INGEST_DOC_TYPES for the canonical list
   subjectId: text("subject_id")
     .notNull()
     .references(() => subjects.id),
