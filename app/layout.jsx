@@ -1,6 +1,7 @@
 import "./globals.css";
 import LogoutButton from "../components/LogoutButton.jsx";
 import OfflineSupport from "../components/OfflineSupport.jsx";
+import OfflineStatusChip from "../components/OfflineStatusChip.jsx";
 import { getSessionUserId } from "../lib/supabase/server.js";
 
 export const metadata = {
@@ -38,6 +39,7 @@ export default async function RootLayout({ children }) {
                 <a href="/flashcards">Flashcards</a>
                 <a href="/interview">Interview</a>
                 <LogoutButton />
+                <OfflineStatusChip />
               </nav>
             )}
           </div>
