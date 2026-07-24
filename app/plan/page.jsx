@@ -150,6 +150,14 @@ export default function PlanPage() {
 
       <TrackCard />
 
+      {data.weeklyAdjustmentNote && (
+        <div className="card">
+          <p className="lede" style={{ marginBottom: 0, fontSize: 13 }}>
+            🧭 Based on last week: {data.weeklyAdjustmentNote}
+          </p>
+        </div>
+      )}
+
       <div className="card">
         {data.days.map((d) => (
           <div className="subtopic-row" key={d.day} style={{ gridTemplateColumns: "90px 70px 1fr", opacity: d.day < data.todayDayNumber ? 0.6 : 1 }}>

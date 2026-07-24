@@ -898,3 +898,32 @@ export const quantLessons = pgTable("quant_lessons", {
   shortcuts: jsonb("shortcuts").notNull().default([]), // flat array of short trick/shortcut strings
   generatedAt: timestamp("generated_at").notNull().defaultNow(),
 });
+
+/**
+ * One row per (user, week the nudge APPLIES to) -- Part E4's weekly AI
+ * adjustment layer. Written by app/api/cron/weekly-replan/route.js once a
+ * user has crossed a new 7-day boundary (weekIndex = floor(dayNumber / 7),
+ * same "day 0 is onboarding day" numbering as lib/adaptive/planEngine.js),
+ * reading the JUST-COMPLETED week's real attempts + weekly test score. This
+ * AUGMENTS the existing deterministic lib/adaptive/planEngine.js schedule,
+ * it does not replace it -- buildDayPlan reads it as a soft bias (focus
+ * subtopics sort earlier when otherwise tied, extra-revision subtopics are
+ * prioritized on revise days), never as a full alternate schedule. Mirrors
+ * pace_checkpoints' composite-PK, "written once per window" shape.
+ */
+export const weeklyPlanAdjustments = pgTable(
+  "weekly_plan_adjustments",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => authUsers.id),
+    weekIndex: integer("week_index").notNull(), // 0-based, floor(dayNumber / 7) -- the week this nudge applies to
+    focusSubtopicIds: jsonb("focus_subtopic_ids").notNull().default([]), // string[], subset of subtopics.id
+    extraRevisionSubtopicIds: jsonb("extra_revision_subtopic_ids").notNull().default([]), // string[], subset of subtopics.id
+    note: text("note").notNull().default(""), // 1-2 sentence human-readable rationale, shown on /plan
+    generatedAt: timestamp("generated_at").notNull().defaultNow(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.userId, table.weekIndex] }),
+  })
+);

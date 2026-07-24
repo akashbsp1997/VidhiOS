@@ -204,6 +204,13 @@
       "when": 1784907167548,
       "tag": "0028_even_cyclops",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1784908311584,
+      "tag": "0029_safe_famine",
+      "breakpoints": true
     }
   ]
 }
