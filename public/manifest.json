@@ -1,0 +1,12 @@
+{
+  "name": "VidhiOS Adaptive",
+  "short_name": "VidhiOS",
+  "description": "Subtopic-by-subtopic adaptive UPSC CSE prep, grounded in official sources and real PYQs.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f7f2e3",
+  "theme_color": "#201a12",
+  "icons": [
+    { "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

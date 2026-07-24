@@ -8,6 +8,20 @@ const nextConfig = {
   outputFileTracingIncludes: {
     "/api/migrate": ["./drizzle/**"],
   },
+  // /sw.js (the offline-mode service worker, see components/OfflineSupport.jsx)
+  // must never be served from a stale HTTP cache -- browsers already
+  // re-check it on every navigation, but some CDN/proxy layers cache static
+  // files under public/ aggressively by default. no-cache forces a
+  // revalidation request every time so a new service worker version is
+  // never stuck behind a cached old one.
+  async headers() {
+    return [
+      {
+        source: "/sw.js",
+        headers: [{ key: "Cache-Control", value: "no-cache" }],
+      },
+    ];
+  },
 };
 
 export default nextConfig;
