@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { offlineFetch } from "../lib/offline/offlineFetch.js";
 
 const STATUS_OPTIONS = [
   { key: "not-started", label: "Not started" },
@@ -39,12 +40,7 @@ export default function SubtopicNotes({ subtopicId }) {
   }, [subtopicId]);
 
   function persist(partial) {
-    fetch("/api/subtopic-notes", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ subtopicId, ...partial }),
-    })
-      .then((r) => r.json())
+    offlineFetch("/api/subtopic-notes", { subtopicId, ...partial })
       .then((data) => {
         if (!data.error) {
           setSaved(true);

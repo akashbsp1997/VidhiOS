@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import LockdownNotice from "./LockdownNotice.jsx";
+import { offlineFetch } from "../lib/offline/offlineFetch.js";
 
 const CATEGORY_LABEL = { background: "Background", optional: "Optional subject", "current-affairs": "Current affairs", situational: "Situational" };
 const PROFILE_FIELDS = [
@@ -72,11 +73,7 @@ export default function InterviewPrep({ viewSessionId }) {
     setSession((s) => ({ ...s, notes: { ...s.notes, [index]: value } }));
     clearTimeout(noteTimers.current[index]);
     noteTimers.current[index] = setTimeout(() => {
-      fetch("/api/interview-sessions/notes", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ sessionId: session.id, questionIndex: index, note: value }),
-      });
+      offlineFetch("/api/interview-sessions/notes", { sessionId: session.id, questionIndex: index, note: value }).catch(() => {});
     }, 700);
   }
 
