@@ -95,7 +95,10 @@ export default function PlanPage() {
                 d.topics.map((t) => (
                   <div key={t.id}>
                     <a href={`/learn/${t.id}`}>{t.topicText}</a>{" "}
-                    <span style={{ fontSize: 11, color: "var(--ink-soft)" }}>({t.subjectDisplayName})</span>
+                    <span style={{ fontSize: 11, color: "var(--ink-soft)" }}>
+                      ({t.subjectDisplayName}
+                      {t.totalSpanDays > 1 ? ` · day ${t.dayOfSpan} of ${t.totalSpanDays}` : ""})
+                    </span>
                   </div>
                 ))
               )}

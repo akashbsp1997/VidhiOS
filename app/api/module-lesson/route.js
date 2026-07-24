@@ -23,6 +23,7 @@ import { casesSeed } from "../../../db/seed/cases.js";
 import { getSessionUserId } from "../../../lib/supabase/server.js";
 import { getSubjectConfig } from "../../../lib/subjects/config.js";
 import { sortByTierPriority } from "../../../lib/sources/tiers.js";
+import { recentCurrentAffairsExcerpts } from "../../../lib/ai/contentGrounding.js";
 import { loadPaperLockMap } from "../../../lib/adaptive/lockState.js";
 import { computeModuleLocks, isStageUnlocked, validateStageAdvance } from "../../../lib/adaptive/unlocks.js";
 import { isSubjectUnlocked, checkLockdown } from "../../../lib/adaptive/subjectUnlockState.js";
@@ -33,15 +34,29 @@ const VALID_STAGES = ["teach", "grasp", "remember", "test"];
 // A subtopic only goes PYQ-anchored (see selectPyqCandidates below) once it
 // has at least this many real PYQs -- with a threshold of 1, a subtopic
 // with exactly one real PYQ would get exactly one module for its entire
-// Teach->Grasp->Remember->Test cycle, a hard regression from the 2-5 module
+// Teach->Grasp->Remember->Test cycle, a hard regression from the module
 // range free decomposition already guarantees. Verified against real seed
 // data: this threshold routes 65% of law-optional subtopics through PYQ
-// anchoring (2-5 modules each) and leaves the rest (0 or 1 PYQ) on
-// unchanged free-decomposition behavior, rather than collapsing 26% of the
-// syllabus to single-module subtopics under a naive ">=1" threshold.
+// anchoring and leaves the rest (0 or 1 PYQ) on unchanged free-decomposition
+// behavior, rather than collapsing 26% of the syllabus to single-module
+// subtopics under a naive ">=1" threshold.
 const MIN_PYQS_FOR_ANCHORING = 2;
-const MAX_MODULES = 5;
-const MAX_PYQS_PER_YEAR = 2;
+// Raised from 5/2 (2026-07-24 "rewrite Teach" change) -- modules are now
+// treated like textbook chapters, not forced to fit a small fixed count, so
+// a subtopic with a genuinely deep real PYQ history (up to 24 for some GS2
+// subtopics) uses far more of it instead of silently discarding most of it.
+// Still a sanity ceiling, not a target -- see lib/adaptive/planEngine.js's
+// daysNeededForSubtopic for how the day-plan now spans a content-heavy
+// subtopic across multiple days instead of assuming one module set fits in
+// one sitting.
+const MAX_MODULES = 12;
+const MAX_PYQS_PER_YEAR = 3;
+
+// Wider than lib/ai/contentGrounding.js's default 60-day/5-item window (used
+// for Test-generation calibration reference) -- a foundational plan/Teach
+// pass is meant to be a durable base, not a "recent news" snapshot, so it
+// pulls from the last year.
+const PLANNING_CURRENT_AFFAIRS_WINDOW = { days: 365, limit: 12 };
 
 // Picks up to MAX_MODULES real PYQs to anchor modules to, favoring recency
 // (what UPSC currently emphasizes) as the relevance signal, capped per year
@@ -184,23 +199,35 @@ export async function GET(request) {
         }
       }
 
-      const pyqCandidates = selectPyqCandidates(
-        await db.select().from(pyqs).where(sql`${subtopicId} = ANY(${pyqs.topics})`)
-      );
+      const allPyqCandidates = await db.select().from(pyqs).where(sql`${subtopicId} = ANY(${pyqs.topics})`);
+      const pyqCandidates = selectPyqCandidates(allPyqCandidates);
+
+      // Both plan paths get the same grounding now (2026-07-24 "rewrite
+      // Teach" change) -- the PYQ-anchored path used to get PYQs only, and
+      // free-decomposition used to silently discard 0-1 existing real PYQs
+      // entirely instead of at least surfacing them as context.
+      const srcRows = await db.select().from(sources).where(eq(sources.subtopicId, subtopicId));
+      const sourceExcerpts = sortByTierPriority(srcRows.filter((s) => s.extractedText))
+        .map((s) => s.extractedText)
+        .slice(0, 2);
+      const currentAffairsExcerpts = await recentCurrentAffairsExcerpts(subtopicId, PLANNING_CURRENT_AFFAIRS_WINDOW);
 
       let planned;
       if (pyqCandidates.length >= MIN_PYQS_FOR_ANCHORING) {
-        planned = await generateModulePlanFromPyqs({ subtopicText: subtopicRow.topicText, pyqCandidates, subjectConfig });
+        planned = await generateModulePlanFromPyqs({ subtopicText: subtopicRow.topicText, pyqCandidates, sourceExcerpts, currentAffairsExcerpts, subjectConfig });
       } else {
-        const srcRows = await db.select().from(sources).where(eq(sources.subtopicId, subtopicId));
-        const sourceExcerpts = sortByTierPriority(srcRows.filter((s) => s.extractedText))
-          .map((s) => s.extractedText)
-          .slice(0, 2);
         const caseAnchors = casesSeed
           .filter((c) => c.topics.includes(subtopicId))
           .map((c) => ({ case: c.case, point: c.point }));
 
-        const freeModules = await generateModulePlan({ subtopicText: subtopicRow.topicText, sourceExcerpts, caseAnchors, subjectConfig });
+        const freeModules = await generateModulePlan({
+          subtopicText: subtopicRow.topicText,
+          sourceExcerpts,
+          currentAffairsExcerpts,
+          referencePyqs: allPyqCandidates.length ? allPyqCandidates : undefined,
+          caseAnchors,
+          subjectConfig,
+        });
         planned = freeModules.map((m) => ({ ...m, pyqId: null }));
       }
 
