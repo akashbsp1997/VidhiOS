@@ -15,10 +15,19 @@ import { subtopics, subjects, currentAffairsItems } from "../../../../db/schema.
 import { summarizeCurrentAffairs } from "../../../../lib/ai/currentAffairs.js";
 
 const NEWSDATA_URL = "https://newsdata.io/api/1/news";
-// UPSC-relevant categories on NewsData.io's free tier; "top" catches
-// anything a narrower category misses. India-scoped (country=in) since
-// that's the exam's own focus.
-const CATEGORIES = "politics,business,environment,world,science,top";
+// UPSC-relevant categories on NewsData.io's free tier. India-scoped
+// (country=in) since that's the exam's own focus.
+//
+// Live failure (2026-07-26): NewsData's free tier rejects more than 5
+// categories in one query ("Number of category cannot exceeded 5 in a
+// single query", HTTP 422) -- the original 6-category list ("top" included
+// as a catch-all) meant EVERY call this route has ever made failed
+// silently (this GET already treats any non-2xx as a clean "error" status
+// without surfacing it anywhere visible day to day, since it's a cron with
+// no one watching its response). Dropped "top" -- the 5 remaining
+// categories are the ones actually mapped to a GS/optional paper; "top"
+// was just insurance against gaps those already mostly cover.
+const CATEGORIES = "politics,business,environment,world,science";
 const MAX_ARTICLES_PER_RUN = 10;
 
 export async function GET(request) {
