@@ -247,7 +247,7 @@ export default function QuantPuzzleChain() {
                   marginBottom: 6,
                   borderRadius: 8,
                   border: "1px solid var(--rule)",
-                  background: i === result.correctIndex ? "#dcebe0" : "var(--ivory-2)",
+                  background: i === result.correctIndex ? "var(--tint-success)" : "var(--ivory-2)",
                   fontSize: 13.5,
                 }}
               >
@@ -274,7 +274,7 @@ export default function QuantPuzzleChain() {
                   marginBottom: 6,
                   borderRadius: 8,
                   border: "1px solid var(--rule)",
-                  background: i === result.correctIndex ? "#dcebe0" : i === selectedIndex ? "#f0dfda" : "var(--ivory-2)",
+                  background: i === result.correctIndex ? "var(--tint-success)" : i === selectedIndex ? "var(--tint-error)" : "var(--ivory-2)",
                   fontSize: 13.5,
                 }}
               >

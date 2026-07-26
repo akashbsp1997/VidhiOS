@@ -143,7 +143,7 @@ export default function FillBlanks() {
                 padding: "6px 10px",
                 borderRadius: 6,
                 cursor: !showResult && filledId ? "pointer" : "default",
-                background: showResult ? (isCorrect ? "#dcebe0" : "#f0dfda") : filledId ? "var(--ivory-2)" : "transparent",
+                background: showResult ? (isCorrect ? "var(--tint-success)" : "var(--tint-error)") : filledId ? "var(--ivory-2)" : "transparent",
                 border: filledId || showResult ? "1px solid var(--rule)" : "1px dashed var(--rule)",
               }}
             >
