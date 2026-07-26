@@ -254,7 +254,7 @@ export default function PlanPage() {
                       {t.totalSpanDays > 1 ? ` · day ${t.dayOfSpan} of ${t.totalSpanDays}` : ""})
                     </span>
                     {t.answered === true && (
-                      <span style={{ marginLeft: 8, fontSize: 11, color: "var(--accent-ok, #2a9d5c)" }}>✓ answered</span>
+                      <span style={{ marginLeft: 8, fontSize: 11, color: "var(--forest)" }}>✓ answered</span>
                     )}
                     {t.answered === false && (
                       <a href={`/practice/${t.id}`} style={{ marginLeft: 8, fontSize: 11.5 }}>

@@ -1,26 +1,46 @@
-/* Same design tokens as VidhiOS (the PWA) for a consistent "family of tools"
-   feel — leather-and-brass shell, ivory content, statute-book typography.
-   This app leans more utilitarian/dashboard than the PWA, so ornamentation
-   (seals, margin numbering) is dropped; the palette carries the brand. */
+/* Gamified re-skin (2026-07-26, per explicit request: "full re-skin to a
+   bright gamer palette", replacing the earlier dark leather/brass/ivory
+   "statute-book" theme). Variable NAMES are kept stable on purpose --
+   dozens of components reference these via inline `var(--brass-light)`-
+   style styles, and rewriting every one of those call sites would be a
+   much larger, error-prone sweep for no visual benefit. Redefining what
+   each name POINTS TO here re-skins the entire app from one file, since
+   every component class and inline style already routes through these
+   tokens. New semantic aliases (--primary/--accent-gold/etc.) are added
+   at the bottom for new code to prefer going forward. */
 
 :root {
-  --leather: #241713;
-  --leather-2: #34211b;
-  --brass: #b8862e;
-  --brass-light: #d9ae5c;
-  --ivory: #f7f2e3;
-  --ivory-2: #eee6d0;
-  --ivory-3: #fbf8ef;
-  --ink: #201a12;
-  --ink-soft: #6b6152;
-  --rule: #ddd0ab;
-  --maroon: #7a2222;
-  --forest: #2f5d3f;
-  --radius: 12px;
-  --shadow: 0 1px 2px rgba(20, 14, 8, 0.06), 0 6px 18px rgba(20, 14, 8, 0.08);
-  --font-display: "Iowan Old Style", Georgia, "Times New Roman", serif;
+  --leather: #5b4fe8;      /* was dark leather-brown -- now the primary vivid indigo/violet */
+  --leather-2: #4638c9;    /* darker primary, for gradients/depth */
+  --brass: #ffb800;        /* was dark gold -- now a bright achievement/XP gold */
+  --brass-light: #ffd666;
+  --ivory: #f7f7fc;        /* app background -- was parchment ivory, now light lavender-white */
+  --ivory-2: #eef0ff;      /* secondary surface -- light indigo tint */
+  --ivory-3: #ffffff;      /* card surface -- crisp white */
+  --ink: #1e1b4b;          /* was brown ink -- now dark indigo-black */
+  --ink-soft: #6b7280;     /* neutral gray secondary text */
+  --rule: #e5e7f5;         /* light lavender border */
+  --maroon: #f43f5e;       /* was dark maroon -- now a vivid rose-red (error/wrong) */
+  --forest: #22c55e;       /* was dark forest -- now a vivid green (success/correct) */
+  --tint-success: #dcfce7; /* light green tint background, e.g. "correct" states */
+  --tint-error: #fee2e2;   /* light red tint background, e.g. "wrong" states */
+  --tint-gold: #fff3d6;    /* light gold tint background, e.g. revise/highlight pills */
+  --radius: 16px;          /* up from 12px -- friendlier, more rounded, more "game app" */
+  --shadow: 0 2px 4px rgba(91, 79, 232, 0.07), 0 8px 24px rgba(91, 79, 232, 0.1);
+  --font-display: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  /* Semantic aliases -- prefer these in new code; existing classes above
+     keep using the legacy names directly, both resolve to the same values. */
+  --primary: var(--leather);
+  --primary-light: var(--leather-2);
+  --accent-gold: var(--brass);
+  --accent-green: var(--forest);
+  --accent-red: var(--maroon);
+  --bg: var(--ivory);
+  --surface: var(--ivory-3);
+  --surface-2: var(--ivory-2);
 }
 
 * { box-sizing: border-box; }
@@ -43,15 +63,104 @@ header.topbar {
   padding: 16px 20px;
   margin-bottom: 24px;
 }
-header.topbar .inner { max-width: 880px; margin: 0 auto; display: flex; align-items: baseline; justify-content: space-between; }
-.brand { font-family: var(--font-display); font-size: 20px; color: var(--ivory-2); font-weight: 700; text-decoration: none; }
+header.topbar .inner { max-width: 880px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.brand { font-family: var(--font-display); font-size: 20px; color: var(--ivory-2); font-weight: 800; text-decoration: none; }
 .brand b { color: var(--brass-light); }
-nav.toplinks { display: flex; gap: 18px; font-size: 13.5px; }
-nav.toplinks a { color: var(--brass-light); text-decoration: none; opacity: 0.85; }
-nav.toplinks a:hover { opacity: 1; text-decoration: underline; }
 
-h1 { font-family: var(--font-display); font-size: 26px; margin: 0 0 4px; }
-h2 { font-family: var(--font-display); font-size: 19px; margin: 0 0 10px; }
+/* components/AppNav.jsx -- grouped, tree-style navigation. Desktop shows
+   inline dropdown groups; mobile shows a hamburger + slide-in drawer with
+   the same groups stacked as accordions. Both read the SAME NAV_GROUPS
+   list, just laid out differently per breakpoint below. */
+.app-nav { position: relative; }
+.app-nav-desktop { display: none; }
+.app-nav-mobile { display: flex; align-items: center; gap: 10px; }
+@media (min-width: 769px) {
+  .app-nav-desktop { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+  .app-nav-mobile { display: none; }
+}
+
+.nav-link { color: var(--brass-light); text-decoration: none; opacity: 0.9; font-size: 13.5px; font-weight: 700; padding: 8px 10px; border-radius: 8px; transition: background 0.15s ease, opacity 0.15s ease; }
+.nav-link:hover { opacity: 1; background: rgba(255, 255, 255, 0.1); }
+
+.nav-group { position: relative; }
+.nav-group > summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--brass-light);
+  font-size: 13.5px;
+  font-weight: 700;
+  padding: 8px 10px;
+  border-radius: 8px;
+  user-select: none;
+  transition: background 0.15s ease;
+}
+.nav-group > summary::-webkit-details-marker { display: none; }
+.nav-group > summary::after { content: "▾"; font-size: 10px; transition: transform 0.2s ease; }
+.nav-group[open] > summary::after { transform: rotate(180deg); }
+.nav-group > summary:hover { background: rgba(255, 255, 255, 0.1); }
+.nav-group-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--ivory-3);
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  padding: 8px;
+  box-shadow: var(--shadow);
+  min-width: 180px;
+  animation: tree-node-open 0.18s ease;
+}
+.nav-group-panel a { color: var(--ink); text-decoration: none; font-size: 13.5px; padding: 8px 10px; border-radius: 8px; }
+.nav-group-panel a:hover { background: var(--ivory-2); }
+@media (min-width: 769px) {
+  .nav-group-panel { position: absolute; top: calc(100% + 6px); left: 0; z-index: 40; }
+}
+
+.app-nav-mobile-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1.5px solid var(--brass-light);
+  background: transparent;
+  color: var(--brass-light);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.app-nav-backdrop { position: fixed; inset: 0; background: rgba(30, 27, 75, 0.45); z-index: 45; }
+.app-nav-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: min(300px, 85vw);
+  background: var(--ivory);
+  z-index: 50;
+  overflow-y: auto;
+  padding: 20px 16px;
+  box-shadow: -8px 0 24px rgba(30, 27, 75, 0.2);
+  animation: app-nav-drawer-in 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+@keyframes app-nav-drawer-in {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+.app-nav-drawer .nav-link { color: var(--ink); }
+.app-nav-drawer .nav-link:hover { background: var(--ivory-2); }
+.app-nav-drawer .nav-group > summary { color: var(--ink); background: var(--ivory-2); margin-bottom: 2px; }
+.app-nav-drawer .nav-group-panel { box-shadow: none; border: none; background: transparent; padding: 2px 0 6px 14px; min-width: 0; }
+
+h1 { font-family: var(--font-display); font-weight: 800; font-size: 26px; margin: 0 0 4px; }
+h2 { font-family: var(--font-display); font-weight: 800; font-size: 19px; margin: 0 0 10px; }
 p.lede { color: var(--ink-soft); margin: 0 0 20px; font-size: 14.5px; }
 
 .card {
@@ -62,6 +171,7 @@ p.lede { color: var(--ink-soft); margin: 0 0 20px; font-size: 14.5px; }
   padding: 18px 20px;
   margin-bottom: 14px;
   box-shadow: var(--shadow);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
 }
 
 .subtopic-row {
@@ -80,13 +190,15 @@ p.lede { color: var(--ink-soft); margin: 0 0 20px; font-size: 14.5px; }
 .subtopic-meta { font-size: 11.5px; color: var(--ink-soft); margin-top: 2px; }
 
 .bar { width: 90px; height: 7px; background: var(--ivory-2); border-radius: 99px; overflow: hidden; border: 1px solid var(--rule); }
-.bar > span { display: block; height: 100%; background: linear-gradient(90deg, var(--brass), var(--brass-light)); }
+.bar > span { display: block; height: 100%; background: linear-gradient(90deg, var(--brass), var(--brass-light)); transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1); }
 
 .tier-pill { font-family: var(--font-mono); font-size: 10.5px; padding: 3px 8px; border-radius: 999px; background: var(--ivory-2); color: var(--ink-soft); white-space: nowrap; }
-.tier-pill.t3 { background: #f0dfda; color: var(--maroon); }
+.tier-pill.t3 { background: var(--tint-error); color: var(--maroon); }
 
-.btn { display: inline-block; border-radius: 9px; padding: 11px 18px; font-size: 14.5px; font-weight: 600; border: 1.5px solid var(--brass); background: var(--ivory-2); color: var(--ink); text-decoration: none; }
-.btn-primary { background: var(--leather); color: var(--brass-light); border-color: var(--leather); }
+.btn { display: inline-block; border-radius: 12px; padding: 11px 18px; font-size: 14.5px; font-weight: 700; border: 1.5px solid var(--brass); background: var(--ivory-2); color: var(--ink); text-decoration: none; transition: transform 0.15s ease, box-shadow 0.15s ease; }
+.btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(91, 79, 232, 0.18); }
+.btn:active:not(:disabled) { transform: translateY(0); box-shadow: none; }
+.btn-primary { background: var(--leather); color: #fff; border-color: var(--leather); }
 .btn:disabled { opacity: 0.5; cursor: default; }
 
 textarea.answer-box {
@@ -114,25 +226,25 @@ textarea.answer-box {
 .source-row:first-child { border-top: none; }
 .source-row a { color: var(--ink); }
 .source-status { font-family: var(--font-mono); font-size: 11px; padding: 2px 7px; border-radius: 6px; }
-.source-status.ok { background: #dcebe0; color: var(--forest); }
-.source-status.error { background: #f0dfda; color: var(--maroon); }
+.source-status.ok { background: var(--tint-success); color: var(--forest); }
+.source-status.error { background: var(--tint-error); color: var(--maroon); }
 .source-status.pending { background: var(--ivory-2); color: var(--ink-soft); }
 
 .disclaimer { font-size: 12.5px; color: var(--ink-soft); background: var(--ivory-2); border-radius: 8px; padding: 10px 14px; margin-top: 14px; }
 
 .loading { color: var(--ink-soft); font-size: 14px; padding: 30px 0; text-align: center; }
-.error-box { background: #f0dfda; color: var(--maroon); border-radius: 8px; padding: 12px 16px; font-size: 14px; }
+.error-box { background: var(--tint-error); color: var(--maroon); border-radius: 8px; padding: 12px 16px; font-size: 14px; }
 
 .stage-pill { font-family: var(--font-mono); font-size: 10px; padding: 3px 7px; border-radius: 999px; white-space: nowrap; background: var(--ivory-2); color: var(--ink-soft); }
-.stage-pill.stage-test { background: #dcebe0; color: var(--forest); }
+.stage-pill.stage-test { background: var(--tint-success); color: var(--forest); }
 
 /* app/plan/page.jsx's day-wise tracker -- distinct from the lesson-stage
    pills above (learn/test/revise are plan-day TYPES, not a subtopic's
    teach/grasp/remember/test progress), same pill shape for visual
    consistency. */
 .day-type-pill { font-family: var(--font-mono); font-size: 10px; padding: 3px 7px; border-radius: 999px; white-space: nowrap; background: var(--ivory-2); color: var(--ink-soft); }
-.day-type-pill.day-type-test { background: #dcebe0; color: var(--forest); }
-.day-type-pill.day-type-revise { background: #f0e6d2; color: var(--brass); }
+.day-type-pill.day-type-test { background: var(--tint-success); color: var(--forest); }
+.day-type-pill.day-type-revise { background: var(--tint-gold); color: var(--brass); }
 
 .example-card, .exercise-card, .mnemonic-card { background: var(--ivory-2); border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; }
 .example-title { font-weight: 700; font-size: 13.5px; margin-bottom: 4px; color: var(--brass); }
@@ -161,7 +273,7 @@ textarea.answer-box {
 .visual-diagram { display: block; max-width: 100%; height: auto; border: 1px solid var(--rule); border-radius: 10px; margin-top: 14px; }
 
 .subtopic-row.locked { opacity: 0.55; }
-.locked-pill { display: inline-block; font-family: var(--font-mono); font-size: 10.5px; padding: 2px 7px; border-radius: 999px; background: #f0dfda; color: var(--maroon); }
+.locked-pill { display: inline-block; font-family: var(--font-mono); font-size: 10.5px; padding: 2px 7px; border-radius: 999px; background: var(--tint-error); color: var(--maroon); }
 
 /* Personal self-status dot (see db/schema.js's mastery.selfStatus) --
    deliberately plain/small, distinct from the tier-pill/stage-pill/bar
@@ -172,13 +284,14 @@ textarea.answer-box {
 .qualifying-pill { display: inline-block; font-family: var(--font-mono); font-size: 9.5px; padding: 1px 6px; border-radius: 999px; background: var(--ivory-2); color: var(--ink-soft); margin-left: 6px; vertical-align: middle; }
 
 .segmented { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
-.seg { border-radius: 8px; padding: 7px 12px; font-size: 13px; border: 1px solid var(--rule); background: var(--ivory-2); color: var(--ink); }
-.seg.active { background: var(--leather); color: var(--brass-light); border-color: var(--leather); }
+.seg { border-radius: 8px; padding: 7px 12px; font-size: 13px; border: 1px solid var(--rule); background: var(--ivory-2); color: var(--ink); transition: transform 0.15s ease, box-shadow 0.15s ease; }
+.seg:hover:not(:disabled):not(.locked) { transform: translateY(-1px); }
+.seg.active { background: var(--leather); color: #fff; border-color: var(--leather); box-shadow: 0 3px 8px rgba(91, 79, 232, 0.25); }
 .seg.locked, .seg:disabled { opacity: 0.5; cursor: default; }
 
 .paper-tile-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; }
-.paper-tile { display: block; background: var(--ivory-2); border: 1px solid var(--rule); border-radius: 10px; padding: 12px 14px; text-decoration: none; color: var(--ink); }
-.paper-tile:hover { border-color: var(--brass); }
+.paper-tile { display: block; background: var(--ivory-2); border: 1px solid var(--rule); border-radius: 10px; padding: 12px 14px; text-decoration: none; color: var(--ink); transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease; }
+.paper-tile:hover { border-color: var(--brass); transform: translateY(-2px); box-shadow: var(--shadow); }
 .paper-tile.coming-soon { opacity: 0.6; }
 .paper-tile-label { font-weight: 700; font-size: 14px; margin-bottom: 4px; }
 .paper-tile-meta { font-size: 11.5px; color: var(--ink-soft); }
@@ -189,7 +302,97 @@ textarea.answer-box {
    than an <a>, with its own pill/message so it doesn't read the same as an
    empty paper. */
 .paper-tile.subject-locked { opacity: 0.55; cursor: default; }
-.subject-locked-pill { display: inline-block; font-family: var(--font-mono); font-size: 9.5px; padding: 1px 6px; border-radius: 999px; background: #f0dfda; color: var(--maroon); margin-left: 6px; vertical-align: middle; }
+.subject-locked-pill { display: inline-block; font-family: var(--font-mono); font-size: 9.5px; padding: 1px 6px; border-radius: 999px; background: var(--tint-error); color: var(--maroon); margin-left: 6px; vertical-align: middle; }
+
+/* Shared <details>/<summary> "tree" open/close treatment -- used by
+   components/AppNav.jsx's grouped nav and components/CollapsibleSection.jsx
+   alike, defined once here so both always animate the same way. The marker
+   is replaced by a rotating chevron (::after) instead of the native
+   triangle, which isn't stylable consistently across browsers. */
+details.tree-node { border: 1px solid var(--rule); border-radius: 10px; background: var(--ivory-3); margin-bottom: 8px; overflow: hidden; }
+details.tree-node > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 10px 14px;
+  font-weight: 700;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  user-select: none;
+}
+details.tree-node > summary::-webkit-details-marker { display: none; }
+details.tree-node > summary::after {
+  content: "▸";
+  color: var(--ink-soft);
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+details.tree-node[open] > summary::after { transform: rotate(90deg); }
+details.tree-node > summary:hover { background: var(--ivory-2); }
+details.tree-node > .tree-node-body {
+  padding: 4px 14px 12px;
+  animation: tree-node-open 0.18s ease;
+}
+@keyframes tree-node-open {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* XP/streak "just increased" pulse -- see lib/gamification client hooks
+   that toggle this class briefly when a fetched value is higher than the
+   last one seen (localStorage-backed, see components/MissionsPanel.jsx). */
+@keyframes value-pop {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.18); color: var(--brass); }
+  100% { transform: scale(1); }
+}
+.value-pop { display: inline-block; animation: value-pop 0.5s ease; }
+
+/* Mobile-responsive sweep (2026-07-26, per explicit request -- there were
+   previously NO breakpoints in this file at all outside @media print).
+   640px covers a phone in portrait; a few rules also step at 768px (tablet/
+   phone-landscape) where the 640px change alone isn't enough. */
+@media (max-width: 768px) {
+  .shell { padding: 0 14px 40px; }
+  header.topbar { padding: 12px 14px; margin-bottom: 16px; }
+
+  h1 { font-size: 21px; }
+  h2 { font-size: 16.5px; }
+  .question-text { font-size: 15.5px; }
+
+  .paper-tile-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+
+  /* Real tap targets, not just "big enough to read" -- 44px is the
+     commonly-cited minimum comfortable touch target. */
+  .btn { min-height: 44px; padding: 11px 16px; display: inline-flex; align-items: center; justify-content: center; }
+  .seg { min-height: 40px; padding: 8px 12px; }
+}
+
+@media (max-width: 640px) {
+  /* .subtopic-row is reused across several pages (paper subtopic lists,
+     /plan, /readiness, /reference, /results, ...) with different sibling
+     elements and its own per-page `gridTemplateColumns` inline override --
+     no single fixed column count survives a phone screen. Rather than
+     assume one page's exact child list, this drops to a generic flex-wrap:
+     every row's cells wrap onto as many lines as they need instead of
+     being squeezed into fixed columns, and .subtopic-text (the one child
+     every caller has -- the main title/content cell) is forced to its own
+     full-width line so a long title never competes for space with the
+     pills/bar/date next to it. The inline gridTemplateColumns override
+     each caller sets becomes inert once display is flex, harmlessly. */
+  .subtopic-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 8px;
+    padding: 10px 0;
+  }
+  .subtopic-row > .subtopic-text { flex: 1 1 100%; }
+
+  .paper-tile-grid { grid-template-columns: 1fr 1fr; }
+}
 
 /* app/notes/export/page.jsx's printable revision booklet -- the browser's
    own "Print / Save as PDF" does the actual export, no PDF library needed.

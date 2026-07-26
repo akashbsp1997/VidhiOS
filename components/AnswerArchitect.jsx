@@ -156,7 +156,7 @@ export default function AnswerArchitect() {
                 padding: "18px 16px",
                 borderRadius: 10,
                 border: "1px solid var(--rule)",
-                background: dragX > 20 ? "#dcebe0" : dragX < -20 ? "#f0dfda" : "var(--ivory-2)",
+                background: dragX > 20 ? "var(--tint-success)" : dragX < -20 ? "var(--tint-error)" : "var(--ivory-2)",
                 fontSize: 14.5,
                 touchAction: "pan-y",
                 cursor: "grab",
@@ -205,7 +205,7 @@ export default function AnswerArchitect() {
                     marginBottom: 6,
                     borderRadius: 8,
                     border: "1px solid var(--rule)",
-                    background: gotItRight ? "#dcebe0" : "#f0dfda",
+                    background: gotItRight ? "var(--tint-success)" : "var(--tint-error)",
                     fontSize: 13.5,
                   }}
                 >

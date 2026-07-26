@@ -2,6 +2,7 @@
 
 import { useEffect, useState, use } from "react";
 import { findPaperTile, isOptionalTile, isCompulsoryLanguageTile } from "../../../../lib/subjects/papers.js";
+import CollapsibleSection from "../../../../components/CollapsibleSection.jsx";
 
 const STAGE_LABEL = { teach: "Teach", grasp: "Grasp", remember: "Remember", test: "Test" };
 const SELF_STATUS_LABEL = { "not-started": "Not started", "in-progress": "In progress", done: "Done" };
@@ -211,11 +212,25 @@ export default function PaperSubtopicsPage({ params }) {
         regardless of this order — nothing is ever fully benched.
       </p>
 
-      <div className="card">
-        {visibleSubtopics.map((s, i) => {
+      {(() => {
+        // Grouped by real syllabus section (already tracked per subtopic --
+        // see db/schema.js's subtopics.section) into collapsible tree
+        // sections, instead of one long flat list. The fade-window/locked
+        // logic below is unchanged -- it's computed from `i`, this subtopic's
+        // position in the FULL visibleSubtopics sequence, not its position
+        // within its section, so basics-to-advanced ordering still holds
+        // exactly as before, just visually bucketed.
+        const sectionOrder = [];
+        const bySection = new Map();
+        visibleSubtopics.forEach((s, i) => {
+          if (!bySection.has(s.section)) {
+            bySection.set(s.section, []);
+            sectionOrder.push(s.section);
+          }
+
           const fadeStep = firstLockedIndex === -1 ? -1 : i - firstLockedIndex;
           const opacity = fadeStep >= 0 ? FADE_OPACITIES[Math.min(fadeStep, FADE_OPACITIES.length - 1)] : undefined;
-          return (
+          bySection.get(s.section).push(
             <div className={`subtopic-row${s.locked ? " locked" : ""}`} style={opacity != null ? { opacity } : undefined} key={s.id}>
               <span
                 className={`self-status-dot self-status-${s.selfStatus}`}
@@ -261,13 +276,20 @@ export default function PaperSubtopicsPage({ params }) {
               </span>
             </div>
           );
-        })}
-        {hiddenCount > 0 && (
-          <p className="section-hint" style={{ marginTop: 10 }}>
-            +{hiddenCount} more subtopic{hiddenCount === 1 ? "" : "s"} — keep mastering the ones above to reveal them.
-          </p>
-        )}
-      </div>
+        });
+
+        return sectionOrder.map((section, idx) => (
+          <CollapsibleSection title={section} meta={`${bySection.get(section).length} topic${bySection.get(section).length === 1 ? "" : "s"}`} defaultOpen={idx === 0} key={section}>
+            {bySection.get(section)}
+          </CollapsibleSection>
+        ));
+      })()}
+
+      {hiddenCount > 0 && (
+        <p className="section-hint" style={{ marginTop: 10 }}>
+          +{hiddenCount} more subtopic{hiddenCount === 1 ? "" : "s"} — keep mastering the ones above to reveal them.
+        </p>
+      )}
     </>
   );
 }

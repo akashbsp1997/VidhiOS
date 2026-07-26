@@ -9,11 +9,19 @@ const ITEM_ICON = { unlock_pass: "🎟", lockdown_grace: "🎫", cosmetic_badge:
 // lib/gamification/*) -- purely a display + "here's what you earned" panel;
 // missions are actually completed as a side effect of real study/practice
 // actions elsewhere in the app (recordMissionSafe), never marked done here.
+const LAST_SEEN_XP_KEY = "vidhios-last-seen-xp";
+
 export default function MissionsPanel() {
   const [missions, setMissions] = useState(null);
   const [playerState, setPlayerState] = useState(null);
   const [usableItems, setUsableItems] = useState([]);
   const [badgeCount, setBadgeCount] = useState(0);
+  // Purely cosmetic "you earned XP since you were last here" pulse -- this
+  // widget only fetches once on mount, it has no live channel to a mission
+  // completing elsewhere in the app mid-session, so this compares against
+  // the last value this browser saw (localStorage) rather than claiming to
+  // detect the exact moment a mission completes.
+  const [xpJustIncreased, setXpJustIncreased] = useState(false);
 
   useEffect(() => {
     fetch("/api/missions")
@@ -22,6 +30,11 @@ export default function MissionsPanel() {
         if (!data.error) {
           setMissions(data.missions);
           setPlayerState(data.playerState);
+          if (typeof localStorage !== "undefined") {
+            const lastSeen = Number(localStorage.getItem(LAST_SEEN_XP_KEY) ?? 0);
+            if (data.playerState.xp > lastSeen) setXpJustIncreased(true);
+            localStorage.setItem(LAST_SEEN_XP_KEY, String(data.playerState.xp));
+          }
         }
       })
       .catch(() => {});
@@ -43,7 +56,7 @@ export default function MissionsPanel() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, flexWrap: "wrap", gap: 6 }}>
         <h2 style={{ margin: 0 }}>Today's missions</h2>
         <span style={{ fontSize: 12.5, color: "var(--ink-soft)" }}>
-          ⭐ {playerState.xp} XP · 🔥 {playerState.currentStreakDays}-day streak
+          ⭐ <span className={xpJustIncreased ? "value-pop" : undefined}>{playerState.xp} XP</span> · 🔥 {playerState.currentStreakDays}-day streak
           {playerState.longestStreakDays > playerState.currentStreakDays ? ` (best ${playerState.longestStreakDays})` : ""}
         </span>
       </div>

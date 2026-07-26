@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import CollapsibleSection from "../../components/CollapsibleSection.jsx";
 
 const TIER_LABEL = { ncert: "NCERT", official: "Official", newspaper: "Newspaper", private_vendor: "Vendor" };
 
@@ -70,13 +71,13 @@ export default function GuidePage() {
         </div>
       )}
 
-      {data.themes.map((t) => (
-        <div className="card" key={t.theme}>
-          <h2 style={{ marginBottom: 2 }}>{t.theme}</h2>
-          <p style={{ fontSize: 12.5, color: "var(--ink-soft)", marginBottom: 12 }}>
-            {t.subjectDisplayName} · {t.subtopicCount} topics · {Math.round(t.avgMastery * 100)}% mastery
-          </p>
-
+      {data.themes.map((t, idx) => (
+        <CollapsibleSection
+          title={t.theme}
+          meta={`${t.subjectDisplayName} · ${t.subtopicCount} topics · ${Math.round(t.avgMastery * 100)}% mastery`}
+          defaultOpen={idx === 0}
+          key={t.theme}
+        >
           <h3 style={{ fontSize: 13.5, marginBottom: 6 }}>Where to start</h3>
           <ol style={{ margin: "0 0 14px", paddingLeft: 20, fontSize: 13.5 }}>
             {t.startHere.map((s) => (
@@ -119,7 +120,7 @@ export default function GuidePage() {
               ))}
             </ul>
           )}
-        </div>
+        </CollapsibleSection>
       ))}
     </>
   );
