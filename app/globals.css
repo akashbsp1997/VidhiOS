@@ -261,6 +261,50 @@ details.tree-node > .tree-node-body {
 }
 .value-pop { display: inline-block; animation: value-pop 0.5s ease; }
 
+/* Mobile-responsive sweep (2026-07-26, per explicit request -- there were
+   previously NO breakpoints in this file at all outside @media print).
+   640px covers a phone in portrait; a few rules also step at 768px (tablet/
+   phone-landscape) where the 640px change alone isn't enough. */
+@media (max-width: 768px) {
+  .shell { padding: 0 14px 40px; }
+  header.topbar { padding: 12px 14px; margin-bottom: 16px; }
+
+  h1 { font-size: 21px; }
+  h2 { font-size: 16.5px; }
+  .question-text { font-size: 15.5px; }
+
+  .paper-tile-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+
+  /* Real tap targets, not just "big enough to read" -- 44px is the
+     commonly-cited minimum comfortable touch target. */
+  .btn { min-height: 44px; padding: 11px 16px; display: inline-flex; align-items: center; justify-content: center; }
+  .seg { min-height: 40px; padding: 8px 12px; }
+}
+
+@media (max-width: 640px) {
+  /* .subtopic-row is reused across several pages (paper subtopic lists,
+     /plan, /readiness, /reference, /results, ...) with different sibling
+     elements and its own per-page `gridTemplateColumns` inline override --
+     no single fixed column count survives a phone screen. Rather than
+     assume one page's exact child list, this drops to a generic flex-wrap:
+     every row's cells wrap onto as many lines as they need instead of
+     being squeezed into fixed columns, and .subtopic-text (the one child
+     every caller has -- the main title/content cell) is forced to its own
+     full-width line so a long title never competes for space with the
+     pills/bar/date next to it. The inline gridTemplateColumns override
+     each caller sets becomes inert once display is flex, harmlessly. */
+  .subtopic-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 8px;
+    padding: 10px 0;
+  }
+  .subtopic-row > .subtopic-text { flex: 1 1 100%; }
+
+  .paper-tile-grid { grid-template-columns: 1fr 1fr; }
+}
+
 /* app/notes/export/page.jsx's printable revision booklet -- the browser's
    own "Print / Save as PDF" does the actual export, no PDF library needed.
    .no-print hides nav/buttons that only make sense on screen. */
