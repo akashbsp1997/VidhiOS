@@ -138,25 +138,38 @@ export async function GET(request) {
       for (const a of trulyNew) seenUrlsThisRun.add(a.link);
 
       let insertedForQuery = 0;
+      let summarizeFailed = false;
       for (let i = 0; i < trulyNew.length; i += SUMMARIZE_BATCH_SIZE) {
         const chunk = trulyNew.slice(i, i + SUMMARIZE_BATCH_SIZE);
-        const summarized = await summarizeCurrentAffairs({
-          articles: chunk.map((a) => ({ title: a.title, description: a.description })),
-          subtopicOptions,
-        });
-        const rows = chunk.map((a, idx) => ({
-          publishedDate: today,
-          title: a.title,
-          summary: summarized[idx]?.summary || (a.description || "").slice(0, 300),
-          sourceUrl: a.link,
-          sourceName: a.source_id ?? null,
-          relatedSubtopicIds: (summarized[idx]?.relatedSubtopicIds ?? []).filter((id) => validSubtopicIds.has(id)),
-        }));
-        const inserted = await db.insert(currentAffairsItems).values(rows).onConflictDoNothing({ target: currentAffairsItems.sourceUrl }).returning();
-        insertedForQuery += inserted.length;
+        try {
+          const summarized = await summarizeCurrentAffairs({
+            articles: chunk.map((a) => ({ title: a.title, description: a.description })),
+            subtopicOptions,
+          });
+          const rows = chunk.map((a, idx) => ({
+            publishedDate: today,
+            title: a.title,
+            summary: summarized[idx]?.summary || (a.description || "").slice(0, 300),
+            sourceUrl: a.link,
+            sourceName: a.source_id ?? null,
+            relatedSubtopicIds: (summarized[idx]?.relatedSubtopicIds ?? []).filter((id) => validSubtopicIds.has(id)),
+          }));
+          const inserted = await db.insert(currentAffairsItems).values(rows).onConflictDoNothing({ target: currentAffairsItems.sourceUrl }).returning();
+          insertedForQuery += inserted.length;
+        } catch (err) {
+          // An AI-provider hiccup (rate limit, quota, timeout) on ONE
+          // chunk shouldn't blow away the whole batch's progress -- log it
+          // and move on to the next chunk/query, same "skip and continue"
+          // treatment the NewsData fetch step above already gets. Without
+          // this, an exception here propagated to the outer catch, killing
+          // the response before it could return a cursor/nextCursor to
+          // resume from at all (a live failure, 2026-07-26).
+          summarizeFailed = true;
+          perQueryLog.push(`"${query}": summarizing chunk ${i / SUMMARIZE_BATCH_SIZE + 1} failed -- ${err.message}, skipped`);
+        }
       }
       insertedTotal += insertedForQuery;
-      perQueryLog.push(`"${query}": ${results.length} fetched, ${trulyNew.length} new, ${insertedForQuery} inserted`);
+      if (!summarizeFailed) perQueryLog.push(`"${query}": ${results.length} fetched, ${trulyNew.length} new, ${insertedForQuery} inserted`);
     }
 
     return NextResponse.json({
