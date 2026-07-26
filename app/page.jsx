@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { PAPER_TILES, isOptionalTile, isCompulsoryLanguageTile } from "../lib/subjects/papers.js";
 import MissionsPanel from "../components/MissionsPanel.jsx";
+import CollapsibleSection from "../components/CollapsibleSection.jsx";
 
 // Groups PAPER_TILES' own static `group` field -- server order (this file's
 // static array order) is preserved since JS objects preserve string-key
@@ -184,9 +185,8 @@ export default function PapersIndex() {
         </span>
       </div>
 
-      {Object.entries(groups).map(([group, items]) => (
-        <div className="card" key={group}>
-          <h2>{group}</h2>
+      {Object.entries(groups).map(([group, items], i) => (
+        <CollapsibleSection title={group} meta={`${items.length} paper${items.length === 1 ? "" : "s"}`} defaultOpen={i === 0} key={group}>
           <div className="paper-tile-grid">
             {group === "CSE Mains — Qualifying" && (
               <a className={`paper-tile${languageSubtopicCount === 0 ? " coming-soon" : ""}`} href="/papers/language">
@@ -247,7 +247,7 @@ export default function PapersIndex() {
               );
             })}
           </div>
-        </div>
+        </CollapsibleSection>
       ))}
 
       <div className="card">
