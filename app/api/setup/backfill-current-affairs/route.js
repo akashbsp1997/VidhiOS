@@ -28,7 +28,12 @@ import { subjects, subtopics, currentAffairsItems } from "../../../../db/schema.
 import { summarizeCurrentAffairs } from "../../../../lib/ai/currentAffairs.js";
 
 const NEWSDATA_URL = "https://newsdata.io/api/1/news";
-const CATEGORIES = "politics,business,environment,world,science,top";
+// Live failure (2026-07-26): NewsData's free tier rejects more than 5
+// categories in one query ("Number of category cannot exceeded 5 in a
+// single query", HTTP 422) -- matches the same fix in
+// app/api/cron/fetch-current-affairs/route.js, see that file's comment for
+// why "top" is the one dropped.
+const CATEGORIES = "politics,business,environment,world,science";
 // NewsData credits per call this route makes -- well under the free tier's
 // 30-credits/15-minute window (see NewsData's rate-limit docs) even across
 // a couple of consecutive runs, and small enough that QUERIES_PER_RUN
