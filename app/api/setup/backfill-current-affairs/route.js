@@ -98,7 +98,18 @@ export async function GET(request) {
           const data = await res.json();
           results = Array.isArray(data.results) ? data.results : [];
         } else {
-          perQueryLog.push(`"${query}": NewsData returned ${res.status}, skipped`);
+          // NewsData's error body carries the actual reason (e.g. an
+          // unsupported parameter combination, an invalid query) -- the
+          // status code alone isn't enough to diagnose a live failure by.
+          const bodyText = await res.text().catch(() => "");
+          let reason = bodyText.slice(0, 300);
+          try {
+            const parsed = JSON.parse(bodyText);
+            reason = parsed?.results?.message || parsed?.message || reason;
+          } catch {
+            // bodyText wasn't JSON -- fall back to the raw text above
+          }
+          perQueryLog.push(`"${query}": NewsData returned ${res.status} -- ${reason}, skipped`);
           continue;
         }
       } catch (err) {
