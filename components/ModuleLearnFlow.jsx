@@ -255,6 +255,22 @@ export default function ModuleLearnFlow({ subtopicId, subjectDisplayName, subtop
             </ul>
           ),
         },
+        // Deliberately its own panel, not merged into "Concept" -- the base
+        // explanation is taught first from NCERT/government/other sources,
+        // this is a separate closing correlation to what's currently
+        // relevant, explicitly meant for citing in an answer (see
+        // lib/ai/generateModules.js's buildModuleTeachSystem).
+        moduleContent.currentAffairsLink?.length > 0 && {
+          key: "current-affairs-link",
+          label: "Current affairs link",
+          node: (
+            <ul style={{ paddingLeft: 20, fontSize: 14, lineHeight: 1.7 }}>
+              {moduleContent.currentAffairsLink.map((p, i) => (
+                <li key={i}>{p}</li>
+              ))}
+            </ul>
+          ),
+        },
       ].filter(Boolean)
     : [];
 

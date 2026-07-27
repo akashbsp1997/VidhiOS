@@ -17,7 +17,7 @@ import { generateCoreContent, generatePracticeContent, generateLessonImage } fro
 import { casesSeed } from "../../../db/seed/cases.js";
 import { getSessionUserId } from "../../../lib/supabase/server.js";
 import { getSubjectConfig } from "../../../lib/subjects/config.js";
-import { sortByTierPriority } from "../../../lib/sources/tiers.js";
+import { labeledSourceExcerptBlocks } from "../../../lib/ai/contentGrounding.js";
 import { loadPaperLockMap } from "../../../lib/adaptive/lockState.js";
 import { isSubjectUnlocked, checkLockdown } from "../../../lib/adaptive/subjectUnlockState.js";
 import { recordMissionSafe } from "../../../lib/gamification/missions.js";
@@ -99,9 +99,7 @@ export async function GET(request) {
 
     if (phase === "core") {
       const srcRows = await db.select().from(sources).where(eq(sources.subtopicId, subtopicId));
-      const sourceExcerpts = sortByTierPriority(srcRows.filter((s) => s.extractedText))
-        .map((s) => s.extractedText)
-        .slice(0, 2);
+      const sourceExcerpts = labeledSourceExcerptBlocks(srcRows);
       const caseAnchors = casesSeed
         .filter((c) => c.topics.includes(subtopicId))
         .map((c) => ({ case: c.case, point: c.point }));

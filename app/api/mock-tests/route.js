@@ -29,7 +29,7 @@ import { subtopics, sources, pyqs, mockTests, mockTestQuestions, modelQuestions,
 import { getSessionUserId } from "../../../lib/supabase/server.js";
 import { getSubjectConfig } from "../../../lib/subjects/config.js";
 import { generateQuestion } from "../../../lib/ai/generateQuestion.js";
-import { sortByTierPriority } from "../../../lib/sources/tiers.js";
+import { labeledSourceExcerptBlocks } from "../../../lib/ai/contentGrounding.js";
 import { isSubjectUnlocked, checkLockdown } from "../../../lib/adaptive/subjectUnlockState.js";
 
 // Real GS Mains paper: 20 questions, 250 marks, 3 hours. Sectional is a
@@ -184,9 +184,7 @@ export async function POST(request) {
         const subtopicRow = fallbackPool[i % fallbackPool.length];
         i++;
         const srcRows = await db.select().from(sources).where(eq(sources.subtopicId, subtopicRow.id));
-        const sourceExcerpts = sortByTierPriority(srcRows.filter((s) => s.extractedText))
-          .map((s) => s.extractedText)
-          .slice(0, 2);
+        const sourceExcerpts = labeledSourceExcerptBlocks(srcRows);
         const generated = await generateQuestion({ subtopicText: subtopicRow.topicText, difficultyTier: 2, sourceExcerpts, subjectConfig });
         const [inserted] = await db
           .insert(modelQuestions)

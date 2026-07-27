@@ -31,13 +31,12 @@ import { generateQuestion } from "../../../lib/ai/generateQuestion.js";
 import { generateModuleTest } from "../../../lib/ai/generateModules.js";
 import { getSessionUserId } from "../../../lib/supabase/server.js";
 import { getSubjectConfig } from "../../../lib/subjects/config.js";
-import { sortByTierPriority } from "../../../lib/sources/tiers.js";
 import { loadPaperLockMap } from "../../../lib/adaptive/lockState.js";
 import { computeModuleLocks, isStageUnlocked } from "../../../lib/adaptive/unlocks.js";
 import { isSubjectUnlocked, loadUnlockedSubjectIds } from "../../../lib/adaptive/subjectUnlockState.js";
 import { isGatedCategory } from "../../../lib/adaptive/subjectUnlocks.js";
 import { recordMissionSafe } from "../../../lib/gamification/missions.js";
-import { recentCurrentAffairsExcerpts, pickReferencePyqs } from "../../../lib/ai/contentGrounding.js";
+import { recentCurrentAffairsExcerpts, pickReferencePyqs, labeledSourceExcerptBlocks } from "../../../lib/ai/contentGrounding.js";
 
 // A module-level Test (components/ModuleTestPanel.jsx) always wants exactly
 // its one question for a known subtopic+module, never the adaptive engine's
@@ -279,9 +278,7 @@ export async function GET(request) {
       questionRefId = String(q.id);
     } else {
       const srcRows = await db.select().from(sources).where(eq(sources.subtopicId, subtopicId));
-      const sourceExcerpts = sortByTierPriority(srcRows.filter((s) => s.extractedText))
-        .map((s) => s.extractedText)
-        .slice(0, 2);
+      const sourceExcerpts = labeledSourceExcerptBlocks(srcRows);
       const currentAffairsExcerpts = await recentCurrentAffairsExcerpts(subtopicId);
       const referencePyqs = pickReferencePyqs(pyqPool, seenQuestionRefIds);
       if (referencePyqs[0]) groundedInPyq = { year: referencePyqs[0].year, marks: referencePyqs[0].marks };
