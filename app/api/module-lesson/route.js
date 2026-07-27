@@ -22,8 +22,7 @@ import { ensureModuleStagePhase } from "../../../lib/adaptive/moduleContentReady
 import { casesSeed } from "../../../db/seed/cases.js";
 import { getSessionUserId } from "../../../lib/supabase/server.js";
 import { getSubjectConfig } from "../../../lib/subjects/config.js";
-import { sortByTierPriority } from "../../../lib/sources/tiers.js";
-import { recentCurrentAffairsExcerpts } from "../../../lib/ai/contentGrounding.js";
+import { recentCurrentAffairsExcerpts, labeledSourceExcerptBlocks } from "../../../lib/ai/contentGrounding.js";
 import { loadPaperLockMap } from "../../../lib/adaptive/lockState.js";
 import { computeModuleLocks, isStageUnlocked, validateStageAdvance } from "../../../lib/adaptive/unlocks.js";
 import { isSubjectUnlocked, checkLockdown } from "../../../lib/adaptive/subjectUnlockState.js";
@@ -207,9 +206,7 @@ export async function GET(request) {
       // free-decomposition used to silently discard 0-1 existing real PYQs
       // entirely instead of at least surfacing them as context.
       const srcRows = await db.select().from(sources).where(eq(sources.subtopicId, subtopicId));
-      const sourceExcerpts = sortByTierPriority(srcRows.filter((s) => s.extractedText))
-        .map((s) => s.extractedText)
-        .slice(0, 2);
+      const sourceExcerpts = labeledSourceExcerptBlocks(srcRows);
       const currentAffairsExcerpts = await recentCurrentAffairsExcerpts(subtopicId, PLANNING_CURRENT_AFFAIRS_WINDOW);
 
       let planned;

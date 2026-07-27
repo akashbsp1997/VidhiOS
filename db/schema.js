@@ -786,6 +786,12 @@ export const lessonModules = pgTable(
     // Teach phase, null until first Teach visit to this module
     teachContent: text("teach_content"),
     keyPoints: jsonb("key_points").notNull().default([]), // flat bullet strings, not structured keyProvisions/caseLaw objects
+    // Distinct from keyPoints -- current-affairs correlation points,
+    // explicitly framed for citing in an answer (see lib/ai/generateModules.js's
+    // buildModuleTeachSystem, 2026-07-26 "teach base concept fully first,
+    // correlate current affairs last" change). Empty when no current-affairs
+    // item genuinely connects to this module -- never forced.
+    currentAffairsLink: jsonb("current_affairs_link").notNull().default([]),
     generatedAt: timestamp("generated_at"),
     // Practice phase -- covers Grasp (examples/exercises/mnemonic), null
     // until first Grasp visit to this module

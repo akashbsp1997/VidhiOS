@@ -1,0 +1,1 @@
+ALTER TABLE "lesson_modules" ADD COLUMN "current_affairs_link" jsonb DEFAULT '[]'::jsonb NOT NULL;

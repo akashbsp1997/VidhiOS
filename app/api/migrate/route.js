@@ -61,7 +61,8 @@ export async function GET(request) {
           (table_name = 'model_questions' and column_name = 'format') or
           (table_name = 'model_questions' and column_name = 'correct_index') or
           (table_name = 'mastery' and column_name = 'unlock_override_until') or
-          (table_name = 'player_state' and column_name = 'track')
+          (table_name = 'player_state' and column_name = 'track') or
+          (table_name = 'lesson_modules' and column_name = 'current_affairs_link')
         )
       order by table_name, column_name
     `);
