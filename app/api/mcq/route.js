@@ -26,12 +26,11 @@ import { db } from "../../../lib/db.js";
 import { subtopics, sources, subjects, attempts, modelQuestions, pyqs } from "../../../db/schema.js";
 import { getSessionUserId } from "../../../lib/supabase/server.js";
 import { getSubjectConfig } from "../../../lib/subjects/config.js";
-import { sortByTierPriority } from "../../../lib/sources/tiers.js";
 import { generateMcq } from "../../../lib/ai/generateMcq.js";
 import { loadUnlockedSubjectIds, isSubjectUnlocked, checkLockdown } from "../../../lib/adaptive/subjectUnlockState.js";
 import { isPassingScore } from "../../../lib/adaptive/scoring.js";
 import { recordMissionSafe } from "../../../lib/gamification/missions.js";
-import { recentCurrentAffairsExcerpts, pickReferencePyqs } from "../../../lib/ai/contentGrounding.js";
+import { recentCurrentAffairsExcerpts, pickReferencePyqs, labeledSourceExcerptBlocks } from "../../../lib/ai/contentGrounding.js";
 
 const MCQ_DIFFICULTY_TIER = 2; // flat default -- no adaptive tiering for the general MCQ pool (see file header)
 const MCQ_MARKS = 2; // standard real UPSC Prelims MCQ weight
@@ -116,9 +115,7 @@ export async function GET(request) {
 
     if (!questionRow) {
       const srcRows = await db.select().from(sources).where(eq(sources.subtopicId, subtopicRow.id));
-      const sourceExcerpts = sortByTierPriority(srcRows.filter((s) => s.extractedText))
-        .map((s) => s.extractedText)
-        .slice(0, 2);
+      const sourceExcerpts = labeledSourceExcerptBlocks(srcRows);
       // Same grounding upgrade as app/api/attempt/route.js's descriptive
       // generation (see the 2026-07-24 "content-first" change) -- MCQ never
       // served a raw PYQ to begin with, this just strengthens what it's
