@@ -192,3 +192,34 @@ app/api/                  attempt (next question / grade), sources, cron
 app/                      Dashboard, practice (adaptive + per-subtopic), source browser
 docs/ARCHITECTURE.md      Design rationale — read this
 ```
+
+## Legal Case Manager (`/legal`)
+
+A second, self-contained product living in this same app — not exam prep.
+Upload a photographed/scanned legal or administrative document (image or
+PDF) and Gemini vision reads it in one pass (OCR + structured fields: doc
+type, case/court info, parties, key dates, amounts, a summary — see
+`lib/legal/extractDocument.js`). Review the result, then spin up a case
+pre-filled from it with one click, or start a case by hand. From there:
+
+- **Party selection** — add/edit petitioners, respondents, advocates, etc.
+  (`app/legal/cases/[id]` → Parties)
+- **Forum selection** — rule-based recommendations (deliberately NOT an AI
+  guess — see `lib/legal/forumRecommend.js`) scored against a seeded catalog
+  of common Indian forums/courts (`db/seed/legal-forums.js`), with the exact
+  reasons behind every suggestion
+- **Tracking case dates** — hearings, filing/limitation deadlines, shown
+  case-by-case and rolled up into a dashboard "Upcoming dates" panel
+- **Drafting and updating** — AI-assisted drafting of notices, petitions,
+  applications, etc. grounded only in the case's own stored facts
+  (`lib/legal/generateDraft.js`), with full version history on every save
+
+Setup adds one step beyond the exam-prep app's own: after `/api/setup/storage`
+(creates the `legal-documents` Storage bucket alongside `ingest-uploads`) and
+`/api/setup` (also seeds the forum catalog now), just visit `/legal`. No new
+environment variables — it reuses the same `DATABASE_URL`,
+`GOOGLE_AI_API_KEY`/`GROQ_API_KEY`, and Supabase keys as the rest of the app.
+
+**Not legal advice.** Every AI-suggested field, forum ranking, and drafted
+document is a starting point for the user (and their own advocate) to
+verify — nothing here files anything or should be relied on without review.
