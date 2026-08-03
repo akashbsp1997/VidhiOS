@@ -46,18 +46,6 @@ const NAV_GROUPS = [
       { href: "/results", label: "Results" },
     ],
   },
-  {
-    // A second, self-contained product living in this app -- see
-    // db/schema.js's "Legal Case Manager" section header. Kept as its own
-    // top-level group rather than folded into "Study" since it's for
-    // running a real case, not exam prep.
-    label: "Legal Case Manager",
-    links: [
-      { href: "/legal", label: "Dashboard" },
-      { href: "/legal/upload", label: "Upload a document" },
-      { href: "/legal/cases/new", label: "New case" },
-    ],
-  },
 ];
 
 // Each group is a native <details>/<summary> -- accessible and keyboard-

@@ -5,14 +5,6 @@ import { createAdminClient } from "../../../../lib/supabase/adminClient.js";
 
 const BUCKETS = [
   { name: "ingest-uploads", fileSizeLimit: "50MB", allowedMimeTypes: ["application/pdf"] },
-  // Legal Case Manager's document uploads (app/api/legal/documents/*) --
-  // images as well as PDFs, since most real uploads here are phone photos
-  // of physical documents, not born-digital PDFs.
-  {
-    name: "legal-documents",
-    fileSizeLimit: "25MB",
-    allowedMimeTypes: ["application/pdf", "image/jpeg", "image/png", "image/webp", "image/heic"],
-  },
   // Bloom Knowledge Forest -- a student's own procured study material (see
   // db/schema.js's personalSources). Private, PDF-only like ingest-uploads;
   // paths are prefixed by userId (app/api/my-sources/*), never exposed
@@ -24,7 +16,7 @@ const BUCKETS = [
 // uploaded files live in permanently. Nested under /api/setup/ so it's
 // covered by middleware.js's existing PUBLIC_API_PREFIXES entry for
 // "/api/setup" -- no middleware change needed for this route specifically
-// (app/api/ingest/*, app/api/legal/* routes do need one, since they don't
+// (app/api/ingest/* and app/api/my-sources/* do need one, since they don't
 // share that path prefix).
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
