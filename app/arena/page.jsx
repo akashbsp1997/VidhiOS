@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import MissionsPanel from "../../components/MissionsPanel.jsx";
 
 const OPTION_LETTER = ["A", "B", "C", "D"];
 const ESTATE_ICON = { garden: "🌱", orchard: "🌳", farm: "🌾", forest: "🌲" };
@@ -177,6 +178,8 @@ export default function ArenaPage() {
           {error}
         </div>
       )}
+
+      <MissionsPanel />
 
       <StateHeader state={state} />
 

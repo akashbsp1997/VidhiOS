@@ -998,6 +998,13 @@ export const lessonModules = pgTable(
     // lessons.visualImageDataUri -- a module is already a narrow single
     // concept, so a flat prompt is enough.
     visualImageDataUri: text("visual_image_data_uri"),
+    // Story Mode -- an OPTIONAL enrichment on top of Remember (see
+    // lib/ai/generateModules.js's generateModuleStory), not part of the
+    // teach/practice/image progression chain and not required to reach
+    // Test. Null until a student first opens it for this module; generated
+    // once and cached forever after, same convention as every other phase.
+    // Array of { sceneText, choices: [{ label, reaction }] }.
+    storyScenes: jsonb("story_scenes"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (table) => ({

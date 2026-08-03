@@ -8,9 +8,9 @@ import PlantDetailSheet from "../../../../components/forest/PlantDetailSheet.jsx
 
 // Bloom Knowledge Forest (design doc §4/§20) -- forest is an equal-weight
 // alternate rendering of this same page's data, not a settings checkbox
-// buried somewhere else; List stays the default on first visit (a brand
-// new UI mode shouldn't surprise an existing user), the choice persists
-// locally per-device once made.
+// buried somewhere else. Forest is now the default (explicit request: the
+// app should "open in game mode as default") -- the choice still persists
+// locally per-device once a student picks the other one.
 const VIEW_PREF_KEY = "bloom-subtopic-view";
 
 const STAGE_LABEL = { teach: "Teach", grasp: "Grasp", remember: "Remember", test: "Test" };
@@ -70,7 +70,7 @@ export default function PaperSubtopicsPage({ params }) {
   const [error, setError] = useState(null);
   const [unlockPasses, setUnlockPasses] = useState([]);
   const [usingPassFor, setUsingPassFor] = useState(null);
-  const [viewMode, setViewMode] = useState("list"); // 'list' | 'forest'
+  const [viewMode, setViewMode] = useState("forest"); // 'list' | 'forest'
   const [selectedPlant, setSelectedPlant] = useState(null);
 
   // Read the saved preference after mount, not during the initial render --
