@@ -25,6 +25,7 @@ const NAV_GROUPS = [
       { href: "/answer-architect", label: "Answer Architect" },
       { href: "/fill-blanks", label: "Fill the Blanks" },
       { href: "/flashcards", label: "Flashcards" },
+      { href: "/arena", label: "Arena" },
     ],
   },
   {

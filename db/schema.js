@@ -708,6 +708,50 @@ export const playerState = pgTable("player_state", {
   // trackSetAt records when it was last set.
   track: text("track"),
   trackSetAt: timestamp("track_set_at"),
+  // PvP arena (lib/gamification/pvp.js) -- a "defense" is a fixed MCQ set
+  // this user answered, standing as their benchmark until they refresh it.
+  // An attacker later takes the SAME question set (defenseQuestions,
+  // correctIndex included -- never sent to an attacker pre-submission) and
+  // compares their score against defenseScore; no synchronization between
+  // two live players needed. defenseScore is null while a fresh set has
+  // been issued but not yet answered (see app/api/pvp/defense/start) -- a
+  // brief "defense is down" window is an accepted, deliberate tradeoff of
+  // this design, not a bug.
+  defenseScore: integer("defense_score"),
+  defenseQuestions: jsonb("defense_questions"), // [{ questionText, options, correctIndex }], null before a defense is ever set
+  defenseSetAt: timestamp("defense_set_at"),
+  // Set after this user is successfully attacked (loses) -- while in the
+  // future, excluded from other players' opponent search
+  // (lib/gamification/pvp.js's findOpponents). Deliberate anti-griefing
+  // guardrail so a stronger player can't repeatedly farm the same weaker
+  // one.
+  shieldedUntil: timestamp("shielded_until"),
+});
+
+/**
+ * One row per resolved PvP arena attack (lib/gamification/pvp.js) --
+ * always resolves immediately (the attacker's score is compared against
+ * the defender's already-standing benchmark the moment the attacker
+ * submits), never a "waiting on the other player" state. attackerScore/
+ * defenderScore are both out of the same question count
+ * (DEFENSE_QUIZ_SIZE), so they're directly comparable without a percentage
+ * conversion. seedsLooted is 0 on a loss/tie -- only a clear attacker win
+ * transfers anything, and only ever from a bounded, fixed wager
+ * (SEEDS_WAGER), never a fraction of the defender's whole balance.
+ */
+export const pvpAttacks = pgTable("pvp_attacks", {
+  id: serial("id").primaryKey(),
+  attackerUserId: uuid("attacker_user_id")
+    .notNull()
+    .references(() => authUsers.id),
+  defenderUserId: uuid("defender_user_id")
+    .notNull()
+    .references(() => authUsers.id),
+  attackerScore: integer("attacker_score").notNull(),
+  defenderScore: integer("defender_score").notNull(),
+  outcome: text("outcome").notNull(), // 'win' | 'loss' | 'tie' (from the attacker's perspective)
+  seedsLooted: integer("seeds_looted").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 /**
