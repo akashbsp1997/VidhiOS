@@ -1044,6 +1044,16 @@ export const lessonModules = pgTable(
     // once and cached forever after, same convention as every other phase.
     // Array of { sceneText, choices: [{ label, reaction }] }.
     storyScenes: jsonb("story_scenes"),
+    // Time-Scene Challenge -- another OPTIONAL Remember-stage enrichment
+    // (see lib/ai/generateModules.js's generateModuleScene): an immersive
+    // scene description dropping the student into a real historical/
+    // geographic moment tied to this module, plus one identification
+    // question (era/revolution/region/society) with a known correct
+    // answer -- multiple-choice, so it's graded client-side instantly,
+    // never touching the overnight batch-grading pipeline. Same
+    // generate-once-cache-forever convention as storyScenes. Shape:
+    // { sceneText, question, options: string[4], correctIndex, explanation }.
+    sceneChallenge: jsonb("scene_challenge"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (table) => ({

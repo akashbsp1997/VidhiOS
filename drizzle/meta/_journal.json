@@ -281,6 +281,13 @@
       "when": 1785772446737,
       "tag": "0039_futuristic_randall_flagg",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1785778989711,
+      "tag": "0040_mature_sugar_man",
+      "breakpoints": true
     }
   ]
 }

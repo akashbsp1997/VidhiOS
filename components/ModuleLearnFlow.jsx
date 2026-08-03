@@ -5,6 +5,9 @@ import ModuleTestPanel from "./ModuleTestPanel.jsx";
 import LockdownNotice from "./LockdownNotice.jsx";
 import StoryMode from "./StoryMode.jsx";
 import LevelMap from "./LevelMap.jsx";
+import LootCrates from "./LootCrates.jsx";
+import EvidenceBoard from "./EvidenceBoard.jsx";
+import TimeSceneChallenge from "./TimeSceneChallenge.jsx";
 import { isStageUnlocked } from "../lib/adaptive/unlocks.js";
 import { bulletLines } from "../lib/text/bullets.js";
 
@@ -126,10 +129,13 @@ export default function ModuleLearnFlow({ subtopicId, subjectDisplayName, subtop
   // every /api/module-lesson response; only a stage's own Continue button
   // (action:"advance") ever moves it forward, a tab click never does.
   const [unlockedStage, setUnlockedStage] = useState(initialData.unlockedStage || "teach");
-  const [storyOpen, setStoryOpen] = useState(false);
+  // Remember-stage minigames -- 'story' | 'crates' | 'evidence' | 'scene' | null.
+  // Only one open at a time; all four are optional enrichment, none gate
+  // progression (see each component's own header comment).
+  const [activeMinigame, setActiveMinigame] = useState(null);
 
   useEffect(() => {
-    setStoryOpen(false);
+    setActiveMinigame(null);
   }, [moduleIndex]);
 
   // Picks up where the dispatcher's own fetch left off, if it wasn't
@@ -444,12 +450,45 @@ export default function ModuleLearnFlow({ subtopicId, subjectDisplayName, subtop
             />
           )}
 
-          {practiceReady && !storyOpen && (
-            <button className="btn" style={{ marginTop: 12 }} onClick={() => setStoryOpen(true)}>
-              🎭 Play the story — learn this as a character →
-            </button>
+          {practiceReady && activeMinigame === null && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
+              <button className="btn" onClick={() => setActiveMinigame("story")}>
+                🎭 Play the story
+              </button>
+              <button className="btn" onClick={() => setActiveMinigame("crates")}>
+                📦 Loot the facts
+              </button>
+              <button className="btn" onClick={() => setActiveMinigame("evidence")}>
+                🧾 Investigate the evidence
+              </button>
+              <button className="btn" onClick={() => setActiveMinigame("scene")}>
+                🌀 Step into the scene
+              </button>
+            </div>
           )}
-          {storyOpen && <StoryMode subtopicId={subtopicId} moduleIndex={moduleIndex} onClose={() => setStoryOpen(false)} />}
+          {activeMinigame === "story" && <StoryMode subtopicId={subtopicId} moduleIndex={moduleIndex} onClose={() => setActiveMinigame(null)} />}
+          {activeMinigame === "crates" && (
+            <div className="card" style={{ marginTop: 10 }}>
+              <LootCrates keyPoints={moduleContent.keyPoints ?? []} />
+              <button className="btn" style={{ marginTop: 10 }} onClick={() => setActiveMinigame(null)}>
+                Close
+              </button>
+            </div>
+          )}
+          {activeMinigame === "evidence" && (
+            <div className="card" style={{ marginTop: 10 }}>
+              <EvidenceBoard
+                moduleId={currentModule.id}
+                moduleTitle={currentModule.title}
+                keyPoints={moduleContent.keyPoints ?? []}
+                otherModuleTitles={modules.filter((m) => m.id !== currentModule.id).map((m) => m.title)}
+              />
+              <button className="btn" style={{ marginTop: 10 }} onClick={() => setActiveMinigame(null)}>
+                Close
+              </button>
+            </div>
+          )}
+          {activeMinigame === "scene" && <TimeSceneChallenge subtopicId={subtopicId} moduleIndex={moduleIndex} onClose={() => setActiveMinigame(null)} />}
         </div>
       )}
 
