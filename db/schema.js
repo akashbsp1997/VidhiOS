@@ -1064,12 +1064,16 @@ export const lessonModules = pgTable(
     sceneChallenge: jsonb("scene_challenge"),
     // Generated in the SAME Teach-phase AI call as teachContent/keyPoints
     // (see buildModuleTeachSystem) -- a short { date, label } sequence
-    // extracted from this module's real content, ONLY when it's genuinely
-    // chronological (a historical/evolutionary module); empty array
-    // otherwise, never forced onto content that isn't a real sequence.
-    // Rendered as a timeline ABOVE the prose in Teach, matching the "visual
-    // timeline before the bullets" pattern observed in real coaching
-    // material (2026-08-03 analysis).
+    // extracted from this module's real content, ONLY when it's a genuine
+    // ordered sequence: real historical chronology, a staged/phased
+    // process (e.g. India's three-stage nuclear programme, a policy
+    // transmission mechanism), or an ordered achievement list -- `date` is
+    // a real year/period for the first case, a stage/step label for the
+    // other two. Empty array for everything else, never forced onto
+    // content that isn't a real sequence. Rendered as a timeline ABOVE the
+    // prose in Teach, matching the "visual sequence before the bullets"
+    // pattern observed in real coaching material (2026-08-03 analysis,
+    // broadened 2026-08-03 beyond pure history per explicit request).
     timelineEvents: jsonb("timeline_events").notNull().default([]),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
