@@ -7,6 +7,7 @@ import { getSessionUserId } from "../../../lib/supabase/server.js";
 import { computeDifficultyScore, orderSubtopicsWithinPaper, computeSubtopicLocks } from "../../../lib/adaptive/unlocks.js";
 import { isGatedCategory } from "../../../lib/adaptive/subjectUnlocks.js";
 import { loadUnlockedSubjectIds, checkLockdown } from "../../../lib/adaptive/subjectUnlockState.js";
+import { deriveForestState } from "../../../lib/forest/growth.js";
 
 export async function GET(request) {
   const userId = await getSessionUserId();
@@ -87,6 +88,21 @@ export async function GET(request) {
       selfStatus: masteryBySubtopic[s.id]?.selfStatus ?? "not-started",
       sourceCount: sourceCountBySubtopic[s.id] ?? 0,
       difficultyScore: computeDifficultyScore(sourcesBySubtopic[s.id], pyqMarksBySubtopic[s.id]),
+      // Bloom Knowledge Forest (lib/forest/growth.js) -- growthStage is the
+      // stored ratchet, health is derived fresh on every read from the
+      // decay checkpoint so it reflects time passed since the last visit,
+      // not just the last write. Purely informational, like selfStatus
+      // above: never affects locking/ordering.
+      ...(() => {
+        const m = masteryBySubtopic[s.id];
+        const { growthStage, health } = deriveForestState({
+          growthStage: m?.growthStage ?? "seed",
+          checkpointScore: m?.lastRetentionCheckpoint?.score,
+          checkpointAt: m?.lastRetentionCheckpoint?.at,
+          easeFactor: m?.retentionEaseFactor,
+        });
+        return { growthStage, health };
+      })(),
     }));
 
     // Study-path order: paper first, then basics -> advanced within it,

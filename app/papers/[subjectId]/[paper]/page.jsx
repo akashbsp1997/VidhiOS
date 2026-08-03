@@ -7,6 +7,10 @@ import CollapsibleSection from "../../../../components/CollapsibleSection.jsx";
 const STAGE_LABEL = { teach: "Teach", grasp: "Grasp", remember: "Remember", test: "Test" };
 const SELF_STATUS_LABEL = { "not-started": "Not started", "in-progress": "In progress", done: "Done" };
 
+// Bloom Knowledge Forest (lib/forest/growth.js's HEALTH_STATES) -- labels
+// for the health dot's tooltip, same ids the API already returns.
+const HEALTH_LABEL = { dormant: "Dormant", bare: "Bare branches", falling: "Falling leaves", yellow: "Yellow leaves", healthy: "Healthy" };
+
 // How many upcoming locked subtopics stay visible (fading out) beyond the
 // unlocked frontier, and how opaque each one is -- position 0 (right after
 // the last unlocked subtopic) is the most visible, fading toward
@@ -232,10 +236,16 @@ export default function PaperSubtopicsPage({ params }) {
           const opacity = fadeStep >= 0 ? FADE_OPACITIES[Math.min(fadeStep, FADE_OPACITIES.length - 1)] : undefined;
           bySection.get(s.section).push(
             <div className={`subtopic-row${s.locked ? " locked" : ""}`} style={opacity != null ? { opacity } : undefined} key={s.id}>
-              <span
-                className={`self-status-dot self-status-${s.selfStatus}`}
-                title={`Your own status: ${SELF_STATUS_LABEL[s.selfStatus] ?? "Not started"} (separate from AI-graded mastery)`}
-              />
+              <span className="row-dots">
+                <span
+                  className={`self-status-dot self-status-${s.selfStatus}`}
+                  title={`Your own status: ${SELF_STATUS_LABEL[s.selfStatus] ?? "Not started"} (separate from AI-graded mastery)`}
+                />
+                <span
+                  className={`mastery-health-dot mastery-health-${s.health}`}
+                  title={`Retention: ${HEALTH_LABEL[s.health] ?? s.health} -- fades over time since your last attempt, revisit to keep it up`}
+                />
+              </span>
               <span className="subtopic-code">{s.id}</span>
               <span className="subtopic-text">
                 {s.locked ? <span>{s.topicText}</span> : <a href={`/learn/${s.id}`}>{s.topicText}</a>}

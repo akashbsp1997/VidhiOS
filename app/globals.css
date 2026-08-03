@@ -176,7 +176,11 @@ p.lede { color: var(--ink-soft); margin: 0 0 20px; font-size: 14.5px; }
 
 .subtopic-row {
   display: grid;
-  grid-template-columns: 13px 44px 1fr auto auto auto;
+  /* First track widened 13px -> 22px to fit the Bloom health dot (see
+     .row-dots below) next to the existing self-status dot -- every other
+     .subtopic-row consumer overrides gridTemplateColumns inline per-page,
+     so this default only actually applies on the Papers subtopic list. */
+  grid-template-columns: 22px 44px 1fr auto auto auto;
   align-items: center;
   gap: 10px;
   padding: 12px 0;
@@ -281,6 +285,19 @@ textarea.answer-box {
 .self-status-dot { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid var(--ink-soft); background: transparent; justify-self: center; }
 .self-status-dot.self-status-in-progress { border-color: var(--brass); background: linear-gradient(90deg, var(--brass) 50%, transparent 50%); }
 .self-status-dot.self-status-done { border-color: var(--forest); background: var(--forest); }
+
+/* Bloom Knowledge Forest health dot (see lib/forest/growth.js's
+   HEALTH_STATES) -- deliberately mirrors the self-status-dot convention
+   above (empty/half/filled) rather than inventing a new visual language.
+   Wrapped in .row-dots so it sits alongside self-status-dot as a single
+   grid item -- see .subtopic-row's widened first track. */
+.row-dots { display: flex; align-items: center; justify-content: center; gap: 3px; }
+.mastery-health-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--ink-soft); background: transparent; flex-shrink: 0; vertical-align: middle; }
+.mastery-health-dot.mastery-health-healthy { border-color: var(--accent-green); background: var(--accent-green); }
+.mastery-health-dot.mastery-health-yellow { border-color: var(--accent-gold); background: var(--accent-gold); }
+.mastery-health-dot.mastery-health-falling { border-color: var(--accent-gold); background: linear-gradient(90deg, var(--accent-gold) 50%, transparent 50%); }
+.mastery-health-dot.mastery-health-bare { border-color: var(--accent-red); background: linear-gradient(90deg, var(--accent-red) 50%, transparent 50%); }
+.mastery-health-dot.mastery-health-dormant { border-color: var(--ink-soft); background: transparent; }
 .qualifying-pill { display: inline-block; font-family: var(--font-mono); font-size: 9.5px; padding: 1px 6px; border-radius: 999px; background: var(--ivory-2); color: var(--ink-soft); margin-left: 6px; vertical-align: middle; }
 
 .segmented { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
