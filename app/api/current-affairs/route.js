@@ -9,6 +9,7 @@ import { desc, inArray } from "drizzle-orm";
 import { db } from "../../../lib/db.js";
 import { currentAffairsItems, subtopics } from "../../../db/schema.js";
 import { getSessionUserId } from "../../../lib/supabase/server.js";
+import { currentWeekFocus } from "../../../lib/adaptive/weeklyFocus.js";
 
 export async function GET(request) {
   const userId = await getSessionUserId();
@@ -28,17 +29,26 @@ export async function GET(request) {
       : [];
     const textById = Object.fromEntries(subtopicRows.map((s) => [s.id, s.topicText]));
 
-    return NextResponse.json({
-      items: recent.map((r) => ({
-        id: r.id,
-        publishedDate: r.publishedDate,
-        title: r.title,
-        summary: r.summary,
-        sourceUrl: r.sourceUrl,
-        sourceName: r.sourceName,
-        relatedTopics: (r.relatedSubtopicIds ?? []).map((id) => ({ id, topicText: textById[id] })).filter((t) => t.topicText),
-      })),
-    });
+    // "Update as per instructions from the once-a-week AI" -- no new AI
+    // call here, just reading the already-computed weekly nudge (see
+    // lib/adaptive/weeklyFocus.js) and flagging which items intersect it,
+    // so this week's priorities surface first without re-deciding anything.
+    const focus = await currentWeekFocus(userId);
+    const focusIds = focus?.subtopicIds ?? new Set();
+
+    const items = recent.map((r) => ({
+      id: r.id,
+      publishedDate: r.publishedDate,
+      title: r.title,
+      summary: r.summary,
+      sourceUrl: r.sourceUrl,
+      sourceName: r.sourceName,
+      relatedTopics: (r.relatedSubtopicIds ?? []).map((id) => ({ id, topicText: textById[id] })).filter((t) => t.topicText),
+      relevantToThisWeek: (r.relatedSubtopicIds ?? []).some((id) => focusIds.has(id)),
+    }));
+    items.sort((a, b) => (b.relevantToThisWeek ? 1 : 0) - (a.relevantToThisWeek ? 1 : 0));
+
+    return NextResponse.json({ items, weekFocusNote: focus?.note || null });
   } catch (err) {
     console.error(err);
     return NextResponse.json({ error: err.message }, { status: 500 });
