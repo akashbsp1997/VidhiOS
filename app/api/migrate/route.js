@@ -72,7 +72,9 @@ export async function GET(request) {
           (table_name = 'lesson_modules' and column_name = 'story_scenes') or
           (table_name = 'lesson_modules' and column_name = 'scene_challenge') or
           (table_name = 'lesson_modules' and column_name = 'article_ref') or
-          (table_name = 'lesson_modules' and column_name = 'timeline_events')
+          (table_name = 'lesson_modules' and column_name = 'timeline_events') or
+          (table_name = 'lesson_modules' and column_name = 'comparison_data') or
+          (table_name = 'lesson_modules' and column_name = 'network_data')
         )
       order by table_name, column_name
     `);
