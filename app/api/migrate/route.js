@@ -62,14 +62,20 @@ export async function GET(request) {
           (table_name = 'model_questions' and column_name = 'correct_index') or
           (table_name = 'mastery' and column_name = 'unlock_override_until') or
           (table_name = 'player_state' and column_name = 'track') or
-          (table_name = 'lesson_modules' and column_name = 'current_affairs_link')
+          (table_name = 'lesson_modules' and column_name = 'current_affairs_link') or
+          (table_name = 'mastery' and column_name = 'growth_stage') or
+          (table_name = 'mastery' and column_name = 'retention_ease_factor') or
+          (table_name = 'mastery' and column_name = 'last_retention_checkpoint') or
+          (table_name = 'player_state' and column_name = 'seeds') or
+          (table_name = 'player_state' and column_name = 'defense_score') or
+          (table_name = 'player_state' and column_name = 'shielded_until')
         )
       order by table_name, column_name
     `);
     const tables = await db.execute(sql`
       select table_name from information_schema.tables
       where table_schema = 'public'
-        and table_name in ('subjects', 'ingest_uploads', 'ingest_items', 'lesson_modules', 'subject_unlocks', 'mock_tests', 'mock_test_questions', 'flashcard_reviews', 'current_affairs_items', 'interview_profiles', 'interview_sessions', 'essay_topics', 'essay_guides', 'essay_attempts', 'question_model_answers', 'player_state', 'player_items', 'daily_mission_log', 'pace_checkpoints', 'monthly_digests', 'daily_results_digests', 'quant_lessons', 'weekly_plan_adjustments')
+        and table_name in ('subjects', 'ingest_uploads', 'ingest_items', 'lesson_modules', 'subject_unlocks', 'mock_tests', 'mock_test_questions', 'flashcard_reviews', 'current_affairs_items', 'interview_profiles', 'interview_sessions', 'essay_topics', 'essay_guides', 'essay_attempts', 'question_model_answers', 'player_state', 'player_items', 'daily_mission_log', 'pace_checkpoints', 'monthly_digests', 'daily_results_digests', 'quant_lessons', 'weekly_plan_adjustments', 'personal_sources', 'pvp_attacks', 'daily_bounties')
     `);
     const compressedCols = await db.execute(sql`
       select table_name, column_name, data_type
@@ -98,6 +104,9 @@ export async function GET(request) {
       quantLessonsTableExists: tableNames.includes("quant_lessons"),
       weeklyPlanAdjustmentsTableExists: tableNames.includes("weekly_plan_adjustments"),
       gamificationTablesExist: tableNames.includes("player_state") && tableNames.includes("player_items") && tableNames.includes("daily_mission_log"),
+      personalSourcesTableExists: tableNames.includes("personal_sources"),
+      pvpAttacksTableExists: tableNames.includes("pvp_attacks"),
+      dailyBountiesTableExists: tableNames.includes("daily_bounties"),
       ingestTablesFound: tableNames.filter((n) => n.startsWith("ingest_")),
       newColumnsFound: cols.map((r) => `${r.table_name}.${r.column_name}`),
     });

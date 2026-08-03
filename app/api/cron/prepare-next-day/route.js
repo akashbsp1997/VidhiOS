@@ -97,7 +97,7 @@ export async function GET(request) {
           while (phasesGenerated < MAX_PHASES_PER_RUN) {
             const phase = nextMissingModulePhase(currentRow);
             if (!phase) break;
-            currentRow = await ensureModuleStagePhase(currentRow, subtopicRow, subjectConfig, phase);
+            currentRow = await ensureModuleStagePhase(currentRow, subtopicRow, subjectConfig, phase, userId);
             phasesGenerated++;
           }
         }

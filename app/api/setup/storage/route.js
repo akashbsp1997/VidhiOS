@@ -13,6 +13,11 @@ const BUCKETS = [
     fileSizeLimit: "25MB",
     allowedMimeTypes: ["application/pdf", "image/jpeg", "image/png", "image/webp", "image/heic"],
   },
+  // Bloom Knowledge Forest -- a student's own procured study material (see
+  // db/schema.js's personalSources). Private, PDF-only like ingest-uploads;
+  // paths are prefixed by userId (app/api/my-sources/*), never exposed
+  // cross-user.
+  { name: "personal-sources", fileSizeLimit: "50MB", allowedMimeTypes: ["application/pdf"] },
 ];
 
 // One-time (but safe to re-run) Storage setup: creates the private buckets

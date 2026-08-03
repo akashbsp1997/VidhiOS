@@ -225,6 +225,41 @@
       "when": 1785120967159,
       "tag": "0031_lovely_whistler",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1785732819306,
+      "tag": "0032_previous_major_mapleleaf",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1785733900404,
+      "tag": "0033_easy_betty_brant",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1785734578075,
+      "tag": "0034_gifted_bruce_banner",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1785735139414,
+      "tag": "0035_ambiguous_stingray",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1785747451474,
+      "tag": "0036_majestic_blue_blade",
+      "breakpoints": true
     }
   ]
 }

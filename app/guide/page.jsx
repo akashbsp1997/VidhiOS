@@ -5,6 +5,10 @@ import CollapsibleSection from "../../components/CollapsibleSection.jsx";
 
 const TIER_LABEL = { ncert: "NCERT", official: "Official", newspaper: "Newspaper", private_vendor: "Vendor" };
 
+// Bloom Knowledge Forest (lib/forest/growth.js's HEALTH_STATES) -- same
+// tooltip labels as the Papers page's health dot.
+const HEALTH_LABEL = { dormant: "Dormant", bare: "Bare branches", falling: "Falling leaves", yellow: "Yellow leaves", healthy: "Healthy" };
+
 // Piece C of the "1-year strategy" request: GS content grouped by theme
 // (Polity, Governance, International Relations, ... -- each subtopic's own
 // `section` field, see lib/subjects/themeGuide.js) with where-to-start,
@@ -82,6 +86,11 @@ export default function GuidePage() {
           <ol style={{ margin: "0 0 14px", paddingLeft: 20, fontSize: 13.5 }}>
             {t.startHere.map((s) => (
               <li key={s.id} style={{ marginBottom: 4 }}>
+                <span
+                  className={`mastery-health-dot mastery-health-${s.health}`}
+                  title={`Retention: ${HEALTH_LABEL[s.health] ?? s.health} -- fades over time since your last attempt, revisit to keep it up`}
+                  style={{ marginRight: 6 }}
+                />
                 <a href={`/learn/${s.id}`}>{s.topicText}</a>
               </li>
             ))}

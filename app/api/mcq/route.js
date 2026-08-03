@@ -30,6 +30,7 @@ import { generateMcq } from "../../../lib/ai/generateMcq.js";
 import { loadUnlockedSubjectIds, isSubjectUnlocked, checkLockdown } from "../../../lib/adaptive/subjectUnlockState.js";
 import { isPassingScore } from "../../../lib/adaptive/scoring.js";
 import { recordMissionSafe } from "../../../lib/gamification/missions.js";
+import { markPrelimsDone } from "../../../lib/gamification/bounties.js";
 import { recentCurrentAffairsExcerpts, pickReferencePyqs, labeledSourceExcerptBlocks } from "../../../lib/ai/contentGrounding.js";
 
 const MCQ_DIFFICULTY_TIER = 2; // flat default -- no adaptive tiering for the general MCQ pool (see file header)
@@ -211,6 +212,7 @@ export async function POST(request) {
 
     await recordMissionSafe(userId, "practice");
     if (isPassingScore(correct ? 100 : 0)) await recordMissionSafe(userId, "pass");
+    await markPrelimsDone(userId, subtopicId);
 
     return NextResponse.json({ correct, correctIndex: questionRow.correctIndex, explanation: questionRow.explanation, stats });
   } catch (err) {

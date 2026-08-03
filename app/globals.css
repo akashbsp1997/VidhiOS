@@ -176,7 +176,11 @@ p.lede { color: var(--ink-soft); margin: 0 0 20px; font-size: 14.5px; }
 
 .subtopic-row {
   display: grid;
-  grid-template-columns: 13px 44px 1fr auto auto auto;
+  /* First track widened 13px -> 22px to fit the Bloom health dot (see
+     .row-dots below) next to the existing self-status dot -- every other
+     .subtopic-row consumer overrides gridTemplateColumns inline per-page,
+     so this default only actually applies on the Papers subtopic list. */
+  grid-template-columns: 22px 44px 1fr auto auto auto;
   align-items: center;
   gap: 10px;
   padding: 12px 0;
@@ -281,7 +285,68 @@ textarea.answer-box {
 .self-status-dot { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid var(--ink-soft); background: transparent; justify-self: center; }
 .self-status-dot.self-status-in-progress { border-color: var(--brass); background: linear-gradient(90deg, var(--brass) 50%, transparent 50%); }
 .self-status-dot.self-status-done { border-color: var(--forest); background: var(--forest); }
+
+/* Bloom Knowledge Forest health dot (see lib/forest/growth.js's
+   HEALTH_STATES) -- deliberately mirrors the self-status-dot convention
+   above (empty/half/filled) rather than inventing a new visual language.
+   Wrapped in .row-dots so it sits alongside self-status-dot as a single
+   grid item -- see .subtopic-row's widened first track. */
+.row-dots { display: flex; align-items: center; justify-content: center; gap: 3px; }
+.mastery-health-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--ink-soft); background: transparent; flex-shrink: 0; vertical-align: middle; }
+.mastery-health-dot.mastery-health-healthy { border-color: var(--accent-green); background: var(--accent-green); }
+.mastery-health-dot.mastery-health-yellow { border-color: var(--accent-gold); background: var(--accent-gold); }
+.mastery-health-dot.mastery-health-falling { border-color: var(--accent-gold); background: linear-gradient(90deg, var(--accent-gold) 50%, transparent 50%); }
+.mastery-health-dot.mastery-health-bare { border-color: var(--accent-red); background: linear-gradient(90deg, var(--accent-red) 50%, transparent 50%); }
+.mastery-health-dot.mastery-health-dormant { border-color: var(--ink-soft); background: transparent; }
 .qualifying-pill { display: inline-block; font-family: var(--font-mono); font-size: 9.5px; padding: 1px 6px; border-radius: 999px; background: var(--ivory-2); color: var(--ink-soft); margin-left: 6px; vertical-align: middle; }
+
+/* Bloom Knowledge Forest, Phase G3 -- canopy grid, plant buttons, and the
+   detail sheet. Reuses .card/.btn/.locked-pill/.segmented's existing
+   tokens throughout rather than introducing a second palette. */
+.forest-grove { display: flex; flex-wrap: wrap; gap: 10px; padding: 4px 0; }
+.forest-plant-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 60px;
+  padding: 6px 2px 8px;
+  border: none;
+  background: transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+.forest-plant-btn:hover, .forest-plant-btn:focus-visible { background: var(--ivory-2); transform: translateY(-2px); }
+.forest-plant-code { font-family: var(--font-mono); font-size: 10px; color: var(--ink-soft); }
+.forest-seed-badge { position: absolute; bottom: -2px; right: -4px; font-size: 13px; line-height: 1; }
+
+.forest-sheet-backdrop { position: fixed; inset: 0; background: rgba(30, 27, 75, 0.45); z-index: 55; display: flex; align-items: flex-end; justify-content: center; }
+.forest-sheet {
+  position: relative;
+  width: min(440px, 100%);
+  max-height: 85vh;
+  overflow-y: auto;
+  background: var(--ivory-3);
+  border-radius: var(--radius) var(--radius) 0 0;
+  padding: 22px 20px 24px;
+  box-shadow: 0 -8px 24px rgba(30, 27, 75, 0.2);
+  animation: app-nav-drawer-in-up 0.2s ease;
+}
+@media (min-width: 640px) {
+  .forest-sheet-backdrop { align-items: center; }
+  .forest-sheet { border-radius: var(--radius); }
+}
+@keyframes app-nav-drawer-in-up {
+  from { transform: translateY(24px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.forest-sheet-close { position: absolute; top: 12px; right: 14px; border: none; background: transparent; font-size: 22px; line-height: 1; color: var(--ink-soft); cursor: pointer; padding: 4px; }
+.forest-ladder-label { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-soft); margin: 12px 0 5px; }
+.forest-ladder { display: flex; flex-wrap: wrap; gap: 5px; }
+.forest-ladder .stage-chip { font-family: var(--font-mono); font-size: 11px; padding: 4px 9px; border-radius: 999px; background: var(--ivory-2); border: 1px solid var(--rule); color: var(--ink-soft); white-space: nowrap; }
+.forest-ladder .stage-chip.on { background: var(--leather); color: #fff; border-color: var(--leather); }
+.forest-ladder .stage-chip.health.on { background: var(--forest); border-color: var(--forest); }
 
 .segmented { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
 .seg { border-radius: 8px; padding: 7px 12px; font-size: 13px; border: 1px solid var(--rule); background: var(--ivory-2); color: var(--ink); transition: transform 0.15s ease, box-shadow 0.15s ease; }

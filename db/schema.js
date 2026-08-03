@@ -19,7 +19,14 @@ import {
 import { compressedText } from "../lib/db/compressedText.js";
 
 // Supabase Auth's own schema/table -- referenced, never created/migrated by us.
-// drizzle-kit introspects and skips it since it already exists in Supabase.
+// Deliberately declares ONLY `id` (an FK target) -- drizzle-kit does NOT
+// actually skip generating DDL for other columns just because the schema
+// is "auth" (confirmed live: declaring `createdAt` here produced a real
+// `ALTER TABLE auth.users ADD COLUMN ...` migration against Supabase's own
+// managed table, which must never run). Account age
+// (lib/gamification/missions.js's accountAgeXp) instead reads
+// auth.users.created_at via a raw, read-only SQL query -- see
+// loadPlayerState -- never through a Drizzle-tracked column on this table.
 const authSchema = pgSchema("auth");
 export const authUsers = authSchema.table("users", {
   id: uuid("id").primaryKey(),
@@ -208,6 +215,42 @@ export const ingestItems = pgTable("ingest_items", {
   committedId: text("committed_id"), // the live row's PK, as text
   reviewedAt: timestamp("reviewed_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+/**
+ * Bloom Knowledge Forest -- a student's own procured study material
+ * (a purchased Laxmikanth/Spectrum/PMF-or-Vision-IAS PDF, etc.), uploaded
+ * for their own grounding only. Deliberately a SEPARATE table from `sources`
+ * rather than another sourceTier value there: `sources` is a global,
+ * admin-curated catalog every user's generation draws on (see
+ * lib/ai/contentGrounding.js's labeledSourceExcerptBlocks) -- sharing a
+ * user's personally-procured, possibly-copyrighted material into that same
+ * global pool would mean every OTHER user's content gets grounded in it
+ * too, which is both a real licensing problem and not what "their own"
+ * means. Rows here are scoped strictly to userId and never read by any
+ * query that doesn't explicitly filter on the requesting user's own id
+ * (this app enforces that in the query layer, same pattern as
+ * attempts/mastery -- see lib/supabase/server.js's getSessionUserId, there
+ * is no separate Postgres RLS policy layer here).
+ */
+export const personalSources = pgTable("personal_sources", {
+  id: serial("id").primaryKey(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => authUsers.id),
+  subtopicId: text("subtopic_id")
+    .notNull()
+    .references(() => subtopics.id),
+  title: text("title").notNull(),
+  storagePath: text("storage_path").notNull(), // private 'personal-sources' Storage bucket, prefixed by userId -- see app/api/my-sources/*
+  fileSizeBytes: integer("file_size_bytes"),
+  pageCount: integer("page_count"),
+  // Stored gzip-compressed, same as sources.extractedText -- see
+  // lib/db/compressedText.js.
+  extractedText: compressedText("extracted_text"),
+  status: text("status").notNull().default("pending"), // 'pending' | 'extracted' | 'needs_ocr' | 'error'
+  errorMsg: text("error_msg"),
+  addedAt: timestamp("added_at").notNull().defaultNow(),
 });
 
 /**
@@ -591,6 +634,26 @@ export const mastery = pgTable(
     // straight to a module deep inside an unstudied subtopic wouldn't be
     // "early access to a topic," it'd be skipping the topic entirely.
     unlockOverrideUntil: timestamp("unlock_override_until"),
+    // Bloom Knowledge Forest, Phase G1 (see lib/forest/growth.js) -- a
+    // ratcheted high-water mark over masteryScore, one of
+    // lib/forest/growth.js's GROWTH_STAGES ids. Cached/derived, not
+    // authoritative: always the max of its previous value and
+    // growthStageForScore(masteryScore) as of the last write, never
+    // decreases on its own. Default 'seed' matches a never-attempted row.
+    growthStage: text("growth_stage").notNull().default("seed"),
+    // SM-2-style ease factor (see lib/adaptive/srs.js's DEFAULT_EASE_FACTOR,
+    // reused not reinvented) driving lib/forest/decay.js's retention curve
+    // -- distinct from currentTier above (that's question difficulty;
+    // this is memory-decay speed). Bumped by lib/forest/decay.js's
+    // applyRevision() on each successful review, same growth direction as
+    // flashcards' own ease factor.
+    retentionEaseFactor: real("retention_ease_factor").notNull().default(2.5),
+    // { score: number (0-1), at: ISO timestamp } -- the point
+    // lib/forest/decay.js's retention() decays forward from. Snapshotted
+    // whenever masteryScore is freshly updated from a graded attempt.
+    // Empty object for a never-attempted row (decay.js treats a missing
+    // checkpoint as "nothing to decay yet," not zero retention).
+    lastRetentionCheckpoint: jsonb("last_retention_checkpoint").notNull().default({}),
   },
   (table) => ({
     pk: primaryKey({ columns: [table.userId, table.subtopicId] }),
@@ -600,21 +663,37 @@ export const mastery = pgTable(
 /**
  * One row per user -- the account-wide gamification state layered on top of
  * per-subtopic mastery (that stays the real learning signal; this is the
- * game-feel layer on top of it). xp accumulates from daily missions
- * (see dailyMissionLog below) and never decreases. streak fields track
- * consecutive calendar days with at least one completed mission --
- * lastActivityDate ('YYYY-MM-DD', UTC) is the cheap way to tell "already
- * counted today" from "a new day, extend or reset the streak" without a
- * second query. lockdownGraceUntil is redeemed from a 'lockdown_grace' item
- * (see playerItems) -- while in the future, lib/adaptive/subjectUnlockState.js's
- * checkLockdown treats the student as not locked down regardless of the
- * real missed-checkpoint state.
+ * game-feel layer on top of it).
+ *
+ * `seeds` is the spendable in-app currency (Bloom Knowledge Forest) --
+ * earned from daily missions (see dailyMissionLog below) and from a
+ * subtopic newly reaching the "mastered_tree" growth stage (bearing
+ * fruit -- see lib/adaptive/masteryUpdate.js), never decreases on its own.
+ * This is what TRACK_SWITCH_SEEDS_THRESHOLD and any future "spend to
+ * unlock" mechanic gate on.
+ *
+ * `xp` is now READ-ONLY / vestigial -- it used to be this same
+ * effort-earned currency (renamed to `seeds` above) but is no longer
+ * written to. "XP" as a user-facing label has been repointed at account
+ * age instead (lib/gamification/missions.js's accountAgeXp(), computed
+ * from authUsers.createdAt at read time, not stored here) -- kept as a
+ * real column rather than dropped, since there's no live data worth losing
+ * by leaving it in place unused.
+ *
+ * streak fields track consecutive calendar days with at least one
+ * completed mission -- lastActivityDate ('YYYY-MM-DD', UTC) is the cheap
+ * way to tell "already counted today" from "a new day, extend or reset the
+ * streak" without a second query. lockdownGraceUntil is redeemed from a
+ * 'lockdown_grace' item (see playerItems) -- while in the future,
+ * lib/adaptive/subjectUnlockState.js's checkLockdown treats the student as
+ * not locked down regardless of the real missed-checkpoint state.
  */
 export const playerState = pgTable("player_state", {
   userId: uuid("user_id")
     .primaryKey()
     .references(() => authUsers.id),
-  xp: integer("xp").notNull().default(0),
+  xp: integer("xp").notNull().default(0), // vestigial -- see comment above, no longer written to
+  seeds: integer("seeds").notNull().default(0),
   currentStreakDays: integer("current_streak_days").notNull().default(0),
   longestStreakDays: integer("longest_streak_days").notNull().default(0),
   lastActivityDate: text("last_activity_date"), // 'YYYY-MM-DD', null before the first mission is ever completed
@@ -624,11 +703,93 @@ export const playerState = pgTable("player_state", {
   // db/seed/placementQuiz.js, app/api/onboarding/route.js), null before the
   // quiz is completed. Drives which fixed 7-day curriculum
   // (db/seed/onboardingWeekPlans.js) a new student sees for days 0-6. Can
-  // change later via self-select once xp clears TRACK_SWITCH_XP_THRESHOLD
-  // (app/api/onboarding/route.js) -- trackSetAt records when it was last set.
+  // change later via self-select once seeds clears
+  // TRACK_SWITCH_SEEDS_THRESHOLD (app/api/onboarding/route.js) --
+  // trackSetAt records when it was last set.
   track: text("track"),
   trackSetAt: timestamp("track_set_at"),
+  // PvP arena (lib/gamification/pvp.js) -- a "defense" is a fixed MCQ set
+  // this user answered, standing as their benchmark until they refresh it.
+  // An attacker later takes the SAME question set (defenseQuestions,
+  // correctIndex included -- never sent to an attacker pre-submission) and
+  // compares their score against defenseScore; no synchronization between
+  // two live players needed. defenseScore is null while a fresh set has
+  // been issued but not yet answered (see app/api/pvp/defense/start) -- a
+  // brief "defense is down" window is an accepted, deliberate tradeoff of
+  // this design, not a bug.
+  defenseScore: integer("defense_score"),
+  defenseQuestions: jsonb("defense_questions"), // [{ questionText, options, correctIndex }], null before a defense is ever set
+  defenseSetAt: timestamp("defense_set_at"),
+  // Set after this user is successfully attacked (loses) -- while in the
+  // future, excluded from other players' opponent search
+  // (lib/gamification/pvp.js's findOpponents). Deliberate anti-griefing
+  // guardrail so a stronger player can't repeatedly farm the same weaker
+  // one.
+  shieldedUntil: timestamp("shielded_until"),
 });
+
+/**
+ * One row per resolved PvP arena attack (lib/gamification/pvp.js) --
+ * always resolves immediately (the attacker's score is compared against
+ * the defender's already-standing benchmark the moment the attacker
+ * submits), never a "waiting on the other player" state. attackerScore/
+ * defenderScore are both out of the same question count
+ * (DEFENSE_QUIZ_SIZE), so they're directly comparable without a percentage
+ * conversion. seedsLooted is 0 on a loss/tie -- only a clear attacker win
+ * transfers anything, and only ever from a bounded, fixed wager
+ * (SEEDS_WAGER), never a fraction of the defender's whole balance.
+ */
+export const pvpAttacks = pgTable("pvp_attacks", {
+  id: serial("id").primaryKey(),
+  attackerUserId: uuid("attacker_user_id")
+    .notNull()
+    .references(() => authUsers.id),
+  defenderUserId: uuid("defender_user_id")
+    .notNull()
+    .references(() => authUsers.id),
+  attackerScore: integer("attacker_score").notNull(),
+  defenderScore: integer("defender_score").notNull(),
+  outcome: text("outcome").notNull(), // 'win' | 'loss' | 'tie' (from the attacker's perspective)
+  seedsLooted: integer("seeds_looted").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+/**
+ * Daily Bounty (lib/gamification/bounties.js) -- one row per (student,
+ * date, subtopic) the student's actual day-plan assigned as a "learn" day
+ * topic. Four steps, each a nullable timestamp (null = not done yet):
+ * teachDoneAt, currentAffairsDoneAt, notesDoneAt, prelimsDoneAt. Once all
+ * four are set, bloomedAt is set exactly once and a seed bonus is granted
+ * -- the "topic blooms today" moment the map surfaces as a bounty. Scoped
+ * to the student's REAL plan for that day (lib/adaptive/planEngine.js),
+ * not just "any topic" -- this is deliberately about today's actual
+ * assigned content, not a generic daily checklist.
+ */
+export const dailyBounties = pgTable(
+  "daily_bounties",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => authUsers.id),
+    bountyDate: text("bounty_date").notNull(), // 'YYYY-MM-DD', UTC -- same convention as dailyMissionLog.missionDate
+    subtopicId: text("subtopic_id")
+      .notNull()
+      .references(() => subtopics.id),
+    teachDoneAt: timestamp("teach_done_at"),
+    // Auto-satisfied alongside teachDoneAt, whether or not the module
+    // actually had real current-affairs correlation to show -- a topic
+    // with no genuine current-affairs angle can't be blocked from
+    // blooming on something that doesn't exist for it. See
+    // lib/gamification/bounties.js's markTeachDone.
+    currentAffairsDoneAt: timestamp("current_affairs_done_at"),
+    notesDoneAt: timestamp("notes_done_at"),
+    prelimsDoneAt: timestamp("prelims_done_at"),
+    bloomedAt: timestamp("bloomed_at"),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.userId, table.bountyDate, table.subtopicId] }),
+  })
+);
 
 /**
  * Inventory of special-access items earned from completed daily missions

@@ -18,6 +18,7 @@ import { computeDifficultyScore } from "../../../lib/adaptive/unlocks.js";
 import { groupByTheme } from "../../../lib/subjects/themeGuide.js";
 import { sortByTierPriority } from "../../../lib/sources/tiers.js";
 import { loadUnlockedSubjectIds } from "../../../lib/adaptive/subjectUnlockState.js";
+import { deriveForestState } from "../../../lib/forest/growth.js";
 
 // How many distinct sources / note bullets to surface per theme -- these are
 // "get oriented" lists, not an exhaustive dump of everything ever attached.
@@ -91,6 +92,14 @@ export async function GET() {
       pyqFrequency: s.pyqFrequency,
       masteryScore: masteryBySubtopic[s.id]?.masteryScore ?? 0,
       selfStatus: masteryBySubtopic[s.id]?.selfStatus ?? "not-started",
+      // Bloom Knowledge Forest (lib/forest/growth.js) -- same read-time
+      // derivation as app/api/subtopics/route.js, see its comment.
+      health: deriveForestState({
+        growthStage: masteryBySubtopic[s.id]?.growthStage ?? "seed",
+        checkpointScore: masteryBySubtopic[s.id]?.lastRetentionCheckpoint?.score,
+        checkpointAt: masteryBySubtopic[s.id]?.lastRetentionCheckpoint?.at,
+        easeFactor: masteryBySubtopic[s.id]?.retentionEaseFactor,
+      }).health,
       difficultyScore: computeDifficultyScore(
         sourcesBySubtopic[s.id]?.map((r) => ({ sourceTier: r.sourceTier, ncertLevel: r.ncertLevel, ncertClass: r.ncertClass })),
         pyqMarksBySubtopic[s.id]
@@ -119,8 +128,8 @@ export async function GET() {
         subjectDisplayName: g.subtopics[0]?.subjectDisplayName ?? "",
         avgMastery: g.avgMastery,
         subtopicCount: g.subtopics.length,
-        startHere: g.subtopics.slice(0, 3).map((s) => ({ id: s.id, topicText: s.topicText, masteryScore: s.masteryScore })),
-        allSubtopics: g.subtopics.map((s) => ({ id: s.id, topicText: s.topicText, masteryScore: s.masteryScore, selfStatus: s.selfStatus })),
+        startHere: g.subtopics.slice(0, 3).map((s) => ({ id: s.id, topicText: s.topicText, masteryScore: s.masteryScore, health: s.health })),
+        allSubtopics: g.subtopics.map((s) => ({ id: s.id, topicText: s.topicText, masteryScore: s.masteryScore, selfStatus: s.selfStatus, health: s.health })),
         sourcesToFollow: dedupedSources,
         notesToInclude: notesInTheme,
       };

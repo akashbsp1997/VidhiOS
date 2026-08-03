@@ -27,6 +27,7 @@ import { loadPaperLockMap } from "../../../lib/adaptive/lockState.js";
 import { computeModuleLocks, isStageUnlocked, validateStageAdvance } from "../../../lib/adaptive/unlocks.js";
 import { isSubjectUnlocked, checkLockdown } from "../../../lib/adaptive/subjectUnlockState.js";
 import { recordMissionSafe } from "../../../lib/gamification/missions.js";
+import { markTeachDone } from "../../../lib/gamification/bounties.js";
 
 const VALID_STAGES = ["teach", "grasp", "remember", "test"];
 
@@ -273,6 +274,7 @@ export async function GET(request) {
     // Only recorded once every lock check above has passed -- a 403'd
     // request never counts as "engaged with learning content today."
     await recordMissionSafe(userId, "learn");
+    await markTeachDone(userId, subtopicId);
 
     const phase = nextMissingPhase(row, STAGE_REQUIRES[stage] ?? [], stage, force);
     const modulesSummary = await buildModulesSummary(modules, moduleLocks);
@@ -292,7 +294,7 @@ export async function GET(request) {
     }
 
     if (phase === "teach") {
-      const saved = await ensureModuleStagePhase(row, subtopicRow, subjectConfig, "teach");
+      const saved = await ensureModuleStagePhase(row, subtopicRow, subjectConfig, "teach", userId);
       return NextResponse.json({
         subtopicId,
         subtopicText: subtopicRow.topicText,

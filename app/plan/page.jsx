@@ -17,16 +17,14 @@ function formatDate(planStartDate, day) {
   return dateForDayNumber(new Date(planStartDate), day).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
 }
 
-// Shows the student's current onboarding track and, once enough XP has been
-// earned (lib/gamification/missions.js's TRACK_SWITCH_XP_THRESHOLD), a
-// picker to self-select a different one -- reuses the existing xp field as
-// the unlock gate rather than a separate currency (see
-// app/api/player/track/route.js).
-// Mirrors lib/gamification/missions.js's TRACK_SWITCH_XP_THRESHOLD -- that
+// Shows the student's current onboarding track and, once enough seeds have
+// been earned (lib/gamification/missions.js's TRACK_SWITCH_SEEDS_THRESHOLD),
+// a picker to self-select a different one (see app/api/player/track/route.js).
+// Mirrors lib/gamification/missions.js's TRACK_SWITCH_SEEDS_THRESHOLD -- that
 // module isn't safe to import client-side (it touches the DB), so the
 // number is duplicated here; GET /api/missions doesn't currently surface the
 // threshold itself since it's a fixed constant, not per-user state.
-const TRACK_SWITCH_XP_THRESHOLD = 200;
+const TRACK_SWITCH_SEEDS_THRESHOLD = 200;
 
 function TrackCard() {
   const [playerState, setPlayerState] = useState(null);
@@ -44,7 +42,7 @@ function TrackCard() {
 
   if (!playerState?.track) return null; // pre-E1 accounts / quiz never completed -- nothing to show
 
-  const canSwitch = playerState.xp >= TRACK_SWITCH_XP_THRESHOLD;
+  const canSwitch = playerState.seeds >= TRACK_SWITCH_SEEDS_THRESHOLD;
 
   function changeTrack(track) {
     setSaving(true);
@@ -67,10 +65,10 @@ function TrackCard() {
     <div className="card">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
         <span style={{ fontSize: 13 }}>
-          🎯 Track: <b>{TRACK_LABEL[playerState.track] ?? playerState.track}</b> · {playerState.xp} XP
+          🎯 Track: <b>{TRACK_LABEL[playerState.track] ?? playerState.track}</b> · 🌱 {playerState.seeds} seeds
         </span>
         {!canSwitch && (
-          <span style={{ fontSize: 12, color: "var(--ink-soft)" }}>Earn 200 XP to unlock changing tracks</span>
+          <span style={{ fontSize: 12, color: "var(--ink-soft)" }}>Earn 200 seeds to unlock changing tracks</span>
         )}
       </div>
       {canSwitch && (
@@ -110,7 +108,7 @@ function WeekOneSummaryCard() {
       <p style={{ fontWeight: 600, marginBottom: 8 }}>🏁 Week 1 complete!</p>
       <p className="lede" style={{ marginBottom: 8 }}>
         {summary.daysCompleted}/{summary.totalLearnDays} days answered · {summary.missionsCompleted} missions done ·{" "}
-        {summary.xpEarnedThisWeek} XP earned this week ({summary.totalXp} XP total) · {summary.currentStreakDays}-day streak
+        🌱 {summary.seedsEarnedThisWeek} seeds earned this week ({summary.totalSeeds} total) · {summary.currentStreakDays}-day streak
         {summary.weeklyTestScorePct != null ? ` · weekly test: ${summary.weeklyTestScorePct}%` : ""}
       </p>
       <p style={{ fontSize: 12.5, color: "var(--ink-soft)", marginBottom: 0 }}>
