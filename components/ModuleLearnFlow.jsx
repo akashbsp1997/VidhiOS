@@ -357,6 +357,8 @@ export default function ModuleLearnFlow({ subtopicId, subjectDisplayName, subtop
       <p className="lede">{subtopicText}</p>
       <p style={{ fontSize: 12.5, marginBottom: 12 }}>
         <a href={`/sources/${encodeURIComponent(subtopicId)}`}>Browse grounding sources (NCERT, govt, current affairs) →</a>
+        {" · "}
+        <a href={`/book/${encodeURIComponent(subtopicId)}`}>📖 Read as a book →</a>
       </p>
 
       <LevelMap subtopicId={subtopicId} modules={modules} moduleIndex={moduleIndex} onSelect={goToModule} />

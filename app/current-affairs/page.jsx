@@ -90,6 +90,7 @@ function MonthlyDigest() {
 
 export default function CurrentAffairsPage() {
   const [items, setItems] = useState(null);
+  const [weekFocusNote, setWeekFocusNote] = useState(null);
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -97,7 +98,10 @@ export default function CurrentAffairsPage() {
       .then((r) => r.json())
       .then((data) => {
         if (data.error) setError(data.error);
-        else setItems(data.items);
+        else {
+          setItems(data.items);
+          setWeekFocusNote(data.weekFocusNote);
+        }
       })
       .catch((e) => setError(e.message));
   }, []);
@@ -137,6 +141,14 @@ export default function CurrentAffairsPage() {
         you need to check for updates on.
       </p>
 
+      {weekFocusNote && (
+        <div className="card" style={{ borderColor: "var(--accent-gold)" }}>
+          <p style={{ fontSize: 13, margin: 0 }}>
+            🎯 <b>This week's focus:</b> {weekFocusNote} Matching items below are marked and surfaced first.
+          </p>
+        </div>
+      )}
+
       <MonthlyDigest />
 
       {grouped.map(([date, dayItems]) => (
@@ -145,6 +157,7 @@ export default function CurrentAffairsPage() {
           {dayItems.map((it) => (
             <div key={it.id} style={{ marginBottom: 16 }}>
               <h3 style={{ fontSize: 14.5, marginBottom: 2 }}>
+                {it.relevantToThisWeek && <span title="Matches this week's focus">🎯 </span>}
                 <a href={it.sourceUrl} target="_blank" rel="noreferrer">
                   {it.title}
                 </a>

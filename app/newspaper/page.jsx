@@ -40,12 +40,21 @@ export default function NewspaperPage() {
       {error && <div className="error-box">{error}</div>}
       {!data && !error && <div className="loading">Fetching today's headlines…</div>}
 
+      {data?.weekFocusNote && (
+        <div className="card" style={{ borderColor: "var(--accent-gold)" }}>
+          <p style={{ fontSize: 13, margin: 0 }}>
+            🎯 <b>This week's focus:</b> {data.weekFocusNote} Matching headlines below are marked and surfaced first.
+          </p>
+        </div>
+      )}
+
       {data?.sections.map((section, i) => (
         <CollapsibleSection title={section.label} meta={`${section.items.length} headline${section.items.length === 1 ? "" : "s"}`} defaultOpen={i === 0} key={section.id}>
           {section.error && <p className="section-hint">Couldn't load this section right now ({section.error}).</p>}
           {section.items.length === 0 && !section.error && <p className="section-hint">No headlines right now.</p>}
           {section.items.map((item, j) => (
             <div key={j} style={{ padding: "6px 0", borderBottom: "1px solid var(--rule)" }}>
+              {item.relevantToThisWeek && <span title="Matches this week's focus">🎯 </span>}
               <a href={item.link} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13.5 }}>
                 {item.title}
               </a>
