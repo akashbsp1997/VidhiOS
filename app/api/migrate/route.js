@@ -65,7 +65,8 @@ export async function GET(request) {
           (table_name = 'lesson_modules' and column_name = 'current_affairs_link') or
           (table_name = 'mastery' and column_name = 'growth_stage') or
           (table_name = 'mastery' and column_name = 'retention_ease_factor') or
-          (table_name = 'mastery' and column_name = 'last_retention_checkpoint')
+          (table_name = 'mastery' and column_name = 'last_retention_checkpoint') or
+          (table_name = 'player_state' and column_name = 'seeds')
         )
       order by table_name, column_name
     `);

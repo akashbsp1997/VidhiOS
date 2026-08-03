@@ -15,7 +15,7 @@ import { getSessionUserId } from "../../../../lib/supabase/server.js";
 import { loadPlanContext } from "../../../../lib/adaptive/planState.js";
 import { buildFixedWeekPlan, dayNumberForDate, dateForDayNumber, TOTAL_FIXED_WEEK_DAYS } from "../../../../lib/adaptive/planEngine.js";
 import { loadFixedWeekCompletion } from "../../../../lib/adaptive/onboardingWeekState.js";
-import { loadPlayerState, XP_PER_MISSION } from "../../../../lib/gamification/missions.js";
+import { loadPlayerState, SEEDS_PER_MISSION } from "../../../../lib/gamification/missions.js";
 
 export async function GET() {
   const userId = await getSessionUserId();
@@ -61,8 +61,9 @@ export async function GET() {
       daysCompleted,
       totalLearnDays: learnDays.length,
       missionsCompleted: missionRows.length,
-      xpEarnedThisWeek: missionRows.length * XP_PER_MISSION,
-      totalXp: playerStateRow.xp,
+      seedsEarnedThisWeek: missionRows.length * SEEDS_PER_MISSION,
+      totalSeeds: playerStateRow.seeds,
+      accountAgeDays: playerStateRow.xp,
       currentStreakDays: playerStateRow.currentStreakDays,
       weeklyTestScorePct,
     });

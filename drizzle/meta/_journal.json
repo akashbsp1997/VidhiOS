@@ -239,6 +239,13 @@
       "when": 1785733900404,
       "tag": "0033_easy_betty_brant",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1785734578075,
+      "tag": "0034_gifted_bruce_banner",
+      "breakpoints": true
     }
   ]
 }

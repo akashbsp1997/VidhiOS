@@ -19,7 +19,14 @@ import {
 import { compressedText } from "../lib/db/compressedText.js";
 
 // Supabase Auth's own schema/table -- referenced, never created/migrated by us.
-// drizzle-kit introspects and skips it since it already exists in Supabase.
+// Deliberately declares ONLY `id` (an FK target) -- drizzle-kit does NOT
+// actually skip generating DDL for other columns just because the schema
+// is "auth" (confirmed live: declaring `createdAt` here produced a real
+// `ALTER TABLE auth.users ADD COLUMN ...` migration against Supabase's own
+// managed table, which must never run). Account age
+// (lib/gamification/missions.js's accountAgeXp) instead reads
+// auth.users.created_at via a raw, read-only SQL query -- see
+// loadPlayerState -- never through a Drizzle-tracked column on this table.
 const authSchema = pgSchema("auth");
 export const authUsers = authSchema.table("users", {
   id: uuid("id").primaryKey(),
@@ -656,21 +663,37 @@ export const mastery = pgTable(
 /**
  * One row per user -- the account-wide gamification state layered on top of
  * per-subtopic mastery (that stays the real learning signal; this is the
- * game-feel layer on top of it). xp accumulates from daily missions
- * (see dailyMissionLog below) and never decreases. streak fields track
- * consecutive calendar days with at least one completed mission --
- * lastActivityDate ('YYYY-MM-DD', UTC) is the cheap way to tell "already
- * counted today" from "a new day, extend or reset the streak" without a
- * second query. lockdownGraceUntil is redeemed from a 'lockdown_grace' item
- * (see playerItems) -- while in the future, lib/adaptive/subjectUnlockState.js's
- * checkLockdown treats the student as not locked down regardless of the
- * real missed-checkpoint state.
+ * game-feel layer on top of it).
+ *
+ * `seeds` is the spendable in-app currency (Bloom Knowledge Forest) --
+ * earned from daily missions (see dailyMissionLog below) and from a
+ * subtopic newly reaching the "mastered_tree" growth stage (bearing
+ * fruit -- see lib/adaptive/masteryUpdate.js), never decreases on its own.
+ * This is what TRACK_SWITCH_SEEDS_THRESHOLD and any future "spend to
+ * unlock" mechanic gate on.
+ *
+ * `xp` is now READ-ONLY / vestigial -- it used to be this same
+ * effort-earned currency (renamed to `seeds` above) but is no longer
+ * written to. "XP" as a user-facing label has been repointed at account
+ * age instead (lib/gamification/missions.js's accountAgeXp(), computed
+ * from authUsers.createdAt at read time, not stored here) -- kept as a
+ * real column rather than dropped, since there's no live data worth losing
+ * by leaving it in place unused.
+ *
+ * streak fields track consecutive calendar days with at least one
+ * completed mission -- lastActivityDate ('YYYY-MM-DD', UTC) is the cheap
+ * way to tell "already counted today" from "a new day, extend or reset the
+ * streak" without a second query. lockdownGraceUntil is redeemed from a
+ * 'lockdown_grace' item (see playerItems) -- while in the future,
+ * lib/adaptive/subjectUnlockState.js's checkLockdown treats the student as
+ * not locked down regardless of the real missed-checkpoint state.
  */
 export const playerState = pgTable("player_state", {
   userId: uuid("user_id")
     .primaryKey()
     .references(() => authUsers.id),
-  xp: integer("xp").notNull().default(0),
+  xp: integer("xp").notNull().default(0), // vestigial -- see comment above, no longer written to
+  seeds: integer("seeds").notNull().default(0),
   currentStreakDays: integer("current_streak_days").notNull().default(0),
   longestStreakDays: integer("longest_streak_days").notNull().default(0),
   lastActivityDate: text("last_activity_date"), // 'YYYY-MM-DD', null before the first mission is ever completed
@@ -680,8 +703,9 @@ export const playerState = pgTable("player_state", {
   // db/seed/placementQuiz.js, app/api/onboarding/route.js), null before the
   // quiz is completed. Drives which fixed 7-day curriculum
   // (db/seed/onboardingWeekPlans.js) a new student sees for days 0-6. Can
-  // change later via self-select once xp clears TRACK_SWITCH_XP_THRESHOLD
-  // (app/api/onboarding/route.js) -- trackSetAt records when it was last set.
+  // change later via self-select once seeds clears
+  // TRACK_SWITCH_SEEDS_THRESHOLD (app/api/onboarding/route.js) --
+  // trackSetAt records when it was last set.
   track: text("track"),
   trackSetAt: timestamp("track_set_at"),
 });
