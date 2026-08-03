@@ -17,7 +17,7 @@ export const maxDuration = 90;
 import { NextResponse } from "next/server";
 import { eq, and, isNull, isNotNull, asc } from "drizzle-orm";
 import { db } from "../../../../lib/db.js";
-import { attempts, essayAttempts, mockTestQuestions, mockTests, subtopics, essayTopics, dailyResultsDigests, lessonModules } from "../../../../db/schema.js";
+import { attempts, essayAttempts, mockTestQuestions, mockTests, subtopics, essayTopics, dailyResultsDigests, lessonModules, dragonChallenges } from "../../../../db/schema.js";
 import { gradeAnswer } from "../../../../lib/ai/grade.js";
 import { gradeEssay } from "../../../../lib/ai/gradeEssay.js";
 import { getSubjectConfig } from "../../../../lib/subjects/config.js";
@@ -135,6 +135,41 @@ export async function GET(request) {
     }
   }
 
+  // --- dragonChallenges (the RPG intro question, see app/api/dragon-challenge)
+  // -- one-time per (student, subtopic), submitted but not yet graded.
+  // Deliberately excluded from dailyResultsDigests/mastery: this is a
+  // diagnostic taken cold, before any teaching, not a scored study action.
+  const pendingDragonChallenges = await db
+    .select()
+    .from(dragonChallenges)
+    .where(and(isNotNull(dragonChallenges.submittedAt), isNull(dragonChallenges.score)))
+    .orderBy(asc(dragonChallenges.submittedAt))
+    .limit(MAX_ITEMS_PER_TYPE_PER_RUN);
+
+  let dragonChallengesGraded = 0;
+  for (const row of pendingDragonChallenges) {
+    try {
+      const subtopicRow = await subtopicText(row.subtopicId);
+      if (!subtopicRow) continue;
+
+      const feedback = await gradeAnswer({
+        questionText: row.questionText,
+        marks: row.marks,
+        subtopicText: subtopicRow.topicText,
+        answerText: row.answerText,
+        subjectConfig: getSubjectConfig(subtopicRow.subjectId),
+      });
+
+      await db
+        .update(dragonChallenges)
+        .set({ score: feedback.score, feedback, gradedAt: new Date() })
+        .where(and(eq(dragonChallenges.userId, row.userId), eq(dragonChallenges.subtopicId, row.subtopicId)));
+      dragonChallengesGraded++;
+    } catch (err) {
+      console.error(`grade-daily-answers: dragon challenge (${row.userId}, ${row.subtopicId}) failed:`, err.message);
+    }
+  }
+
   // --- mockTestQuestions (only answered ones -- an unanswered question has
   // answerText:null too, and must never be sent for grading) ---
   const pendingMockQuestions = await db
@@ -210,6 +245,7 @@ export async function GET(request) {
   return NextResponse.json({
     attemptsGraded,
     essaysGraded,
+    dragonChallengesGraded,
     mockQuestionsGraded,
     digestsWritten: digestAcc.size,
   });

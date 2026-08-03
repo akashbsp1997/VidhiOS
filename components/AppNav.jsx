@@ -16,6 +16,7 @@ const NAV_GROUPS = [
       { href: "/guide", label: "Guide" },
       { href: "/ncert-chapters", label: "NCERT Chapters" },
       { href: "/current-affairs", label: "Current affairs" },
+      { href: "/newspaper", label: "Daily Newspaper" },
       { href: "/quant", label: "Quant" },
     ],
   },

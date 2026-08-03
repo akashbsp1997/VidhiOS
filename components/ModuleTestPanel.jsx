@@ -7,6 +7,29 @@ import ModelAnswerPanel from "./ModelAnswerPanel.jsx";
 // change) -- questionSource is always "model".
 const SOURCE_LABEL = { model: "Model question" };
 
+// "Monster Battle" -- a purely cosmetic reskin of this module's real Test
+// (explicit request: "tested by a small adventure of defeating a sphinx or
+// a lion or a centaur"). Deliberately NOT a new question format or a new
+// grading path -- this app's answer grading moved to one predictable
+// nightly batch window on 2026-07-24 specifically to keep AI usage
+// predictable, and reworking that same night to also support instant
+// win/lose combat feedback would fight that decision. So "defeating" the
+// creature is the act of submitting a real attempt (same thing that
+// already unlocks the next module) -- the AI's actual verdict still
+// arrives the next morning, same as every other test in this app.
+const CREATURES = [
+  { name: "Sphinx", emoji: "🗿", verb: "answer its riddle" },
+  { name: "Lion", emoji: "🦁", verb: "stand your ground" },
+  { name: "Centaur", emoji: "🐎", verb: "match its challenge" },
+  { name: "Gorgon", emoji: "🐍", verb: "hold your nerve" },
+  { name: "Griffin", emoji: "🦅", verb: "prove your worth" },
+  { name: "Minotaur", emoji: "🐂", verb: "navigate the maze" },
+];
+
+function creatureForModule(moduleId) {
+  return CREATURES[Math.abs(Number(moduleId) || 0) % CREATURES.length];
+}
+
 // Deliberately NOT PracticeSession -- that component's loadNext/"Next
 // question →" loop assumes an unbounded adaptive pool (real PYQs mixed
 // with rotating model questions), which doesn't fit this panel's shape:
@@ -118,11 +141,20 @@ export default function ModuleTestPanel({ subtopicId, moduleId, moduleTitle, isL
     );
   if (!question) return null;
 
+  const creature = creatureForModule(moduleId);
+
   return (
     <>
-      <div className="meta-line">
-        {moduleTitle} · {question.marks} marks · {SOURCE_LABEL[question.questionSource] || question.questionSource}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+        <span style={{ fontSize: 26 }}>{creature.emoji}</span>
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 14.5 }}>The {creature.name} bars your way</div>
+          <div style={{ fontSize: 12, color: "var(--ink-soft)" }}>
+            {moduleTitle} · {question.marks} marks · {creature.verb} to pass
+          </div>
+        </div>
       </div>
+      <div className="meta-line">{SOURCE_LABEL[question.questionSource] || question.questionSource}</div>
       {question.groundedInPyq && (
         <div style={{ marginBottom: 8, fontSize: 12.5, color: "var(--ink-soft)" }}>
           ✨ In the style of a real {question.groundedInPyq.year} PYQ ({question.groundedInPyq.marks} marks)
@@ -147,7 +179,7 @@ export default function ModuleTestPanel({ subtopicId, moduleId, moduleTitle, isL
           )}
           <div style={{ marginTop: 12 }}>
             <button className="btn btn-primary" onClick={submitAnswer} disabled={grading || !answerText.trim()}>
-              {grading ? "Saving…" : gradingError ? "Retry saving" : "Submit answer"}
+              {grading ? "Striking…" : gradingError ? "Retry the strike" : `⚔️ Strike the ${creature.name}`}
             </button>
           </div>
         </>
@@ -156,7 +188,7 @@ export default function ModuleTestPanel({ subtopicId, moduleId, moduleTitle, isL
       {submitted && (
         <div style={{ marginTop: 10 }}>
           <p className="lede" style={{ marginBottom: 0 }}>
-            ✓ Saved — you'll get your score and feedback after tonight's grading run.
+            {creature.emoji} The {creature.name} yields — you'll see how well you actually fought after tonight's grading run.
           </p>
 
           <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap", alignItems: "center" }}>
