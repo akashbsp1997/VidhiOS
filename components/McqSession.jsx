@@ -43,6 +43,7 @@ export default function McqSession() {
   const [bestComboThisRound, setBestComboThisRound] = useState(0);
   const [timeLeft, setTimeLeft] = useState(QUESTION_SECONDS);
   const [roundComplete, setRoundComplete] = useState(false);
+  const [bestRoundScore, setBestRoundScore] = useState(0); // session-local high score, same convention as AnswerArchitect/FillBlanks
   const timerRef = useRef(null);
   const submitRef = useRef(null); // always points at the current submitAnswer, so the timer's setTimeout closes over fresh state
 
@@ -123,6 +124,7 @@ export default function McqSession() {
   function nextQuestion() {
     const nextRoundIndex = roundIndex + 1;
     if (nextRoundIndex >= ROUND_LENGTH) {
+      setBestRoundScore((s) => Math.max(s, roundScore));
       setRoundComplete(true);
       return;
     }
@@ -144,7 +146,7 @@ export default function McqSession() {
       <div className="card">
         <h2 style={{ marginTop: 0 }}>Round complete! 🏁</h2>
         <p className="lede" style={{ marginBottom: 10 }}>
-          Round score <b>{roundScore}</b> · best combo <b>x{multiplierForStreak(bestComboThisRound)}</b> ({bestComboThisRound}
+          Round score <b>{roundScore}</b> · best this session <b>{bestRoundScore}</b> · best combo <b>x{multiplierForStreak(bestComboThisRound)}</b> ({bestComboThisRound}
           -streak)
           {stats && (
             <>

@@ -17,12 +17,12 @@ const NAV_GROUPS = [
       { href: "/ncert-chapters", label: "NCERT Chapters" },
       { href: "/current-affairs", label: "Current affairs" },
       { href: "/quant", label: "Quant" },
-      { href: "/prelims", label: "Prelims" },
     ],
   },
   {
     label: "Games",
     links: [
+      { href: "/prelims", label: "Prelims Arcade" },
       { href: "/answer-architect", label: "Answer Architect" },
       { href: "/fill-blanks", label: "Fill the Blanks" },
       { href: "/flashcards", label: "Flashcards" },

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import ModuleTestPanel from "./ModuleTestPanel.jsx";
 import LockdownNotice from "./LockdownNotice.jsx";
+import StoryMode from "./StoryMode.jsx";
 import { isStageUnlocked } from "../lib/adaptive/unlocks.js";
 import { bulletLines } from "../lib/text/bullets.js";
 
@@ -124,6 +125,11 @@ export default function ModuleLearnFlow({ subtopicId, subjectDisplayName, subtop
   // every /api/module-lesson response; only a stage's own Continue button
   // (action:"advance") ever moves it forward, a tab click never does.
   const [unlockedStage, setUnlockedStage] = useState(initialData.unlockedStage || "teach");
+  const [storyOpen, setStoryOpen] = useState(false);
+
+  useEffect(() => {
+    setStoryOpen(false);
+  }, [moduleIndex]);
 
   // Picks up where the dispatcher's own fetch left off, if it wasn't
   // immediately ready (e.g. it only just ran the module-planning phase, or
@@ -449,6 +455,13 @@ export default function ModuleLearnFlow({ subtopicId, subjectDisplayName, subtop
               completeLabel="Start Test →"
             />
           )}
+
+          {practiceReady && !storyOpen && (
+            <button className="btn" style={{ marginTop: 12 }} onClick={() => setStoryOpen(true)}>
+              🎭 Play the story — learn this as a character →
+            </button>
+          )}
+          {storyOpen && <StoryMode subtopicId={subtopicId} moduleIndex={moduleIndex} onClose={() => setStoryOpen(false)} />}
         </div>
       )}
 
