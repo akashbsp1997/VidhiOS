@@ -22,18 +22,39 @@ export default function ForestCanopy({ sectionOrder, bySection, onSelect }) {
             key={section}
           >
             <div className="forest-grove">
-              {items.map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  className="forest-plant-btn"
-                  style={s.opacity != null ? { opacity: s.opacity } : undefined}
-                  onClick={() => onSelect(s)}
-                >
-                  <PlantGlyph growthStage={s.growthStage} health={s.health} size={44} title={s.topicText} />
-                  <span className="forest-plant-code">{s.id}</span>
-                </button>
-              ))}
+              {items.map((s) => {
+                // A Mastered Tree has "borne fruit" -- it's what unlocked
+                // the next subtopic in this chain (lib/adaptive/unlocks.js's
+                // existing sequential-mastery lock, unchanged); the seed
+                // badge just names that mechanic instead of leaving it
+                // implicit. A locked plant's tooltip explains what it's
+                // still waiting on, using the same requiredSubtopicText the
+                // List view's locked-pill already shows.
+                const bore = s.growthStage === "mastered_tree";
+                const title = s.locked
+                  ? `Locked — needs seeds from mastering "${s.requiredSubtopicText}" first (${s.currentMasteryPct}%/${s.requiredMasteryPct}%)`
+                  : s.topicText;
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    className="forest-plant-btn"
+                    style={s.opacity != null ? { opacity: s.opacity } : undefined}
+                    onClick={() => onSelect(s)}
+                    title={title}
+                  >
+                    <span style={{ position: "relative" }}>
+                      <PlantGlyph growthStage={s.growthStage} health={s.health} size={44} title={title} />
+                      {bore && (
+                        <span className="forest-seed-badge" aria-hidden="true">
+                          🌱
+                        </span>
+                      )}
+                    </span>
+                    <span className="forest-plant-code">{s.id}</span>
+                  </button>
+                );
+              })}
             </div>
           </CollapsibleSection>
         );

@@ -211,6 +211,42 @@ export const ingestItems = pgTable("ingest_items", {
 });
 
 /**
+ * Bloom Knowledge Forest -- a student's own procured study material
+ * (a purchased Laxmikanth/Spectrum/PMF-or-Vision-IAS PDF, etc.), uploaded
+ * for their own grounding only. Deliberately a SEPARATE table from `sources`
+ * rather than another sourceTier value there: `sources` is a global,
+ * admin-curated catalog every user's generation draws on (see
+ * lib/ai/contentGrounding.js's labeledSourceExcerptBlocks) -- sharing a
+ * user's personally-procured, possibly-copyrighted material into that same
+ * global pool would mean every OTHER user's content gets grounded in it
+ * too, which is both a real licensing problem and not what "their own"
+ * means. Rows here are scoped strictly to userId and never read by any
+ * query that doesn't explicitly filter on the requesting user's own id
+ * (this app enforces that in the query layer, same pattern as
+ * attempts/mastery -- see lib/supabase/server.js's getSessionUserId, there
+ * is no separate Postgres RLS policy layer here).
+ */
+export const personalSources = pgTable("personal_sources", {
+  id: serial("id").primaryKey(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => authUsers.id),
+  subtopicId: text("subtopic_id")
+    .notNull()
+    .references(() => subtopics.id),
+  title: text("title").notNull(),
+  storagePath: text("storage_path").notNull(), // private 'personal-sources' Storage bucket, prefixed by userId -- see app/api/my-sources/*
+  fileSizeBytes: integer("file_size_bytes"),
+  pageCount: integer("page_count"),
+  // Stored gzip-compressed, same as sources.extractedText -- see
+  // lib/db/compressedText.js.
+  extractedText: compressedText("extracted_text"),
+  status: text("status").notNull().default("pending"), // 'pending' | 'extracted' | 'needs_ocr' | 'error'
+  errorMsg: text("error_msg"),
+  addedAt: timestamp("added_at").notNull().defaultNow(),
+});
+
+/**
  * Real UPSC CSE Mains PYQs across subjects (Law Optional 2023-2025, GS Paper
  * II 2015-2025, more to follow). `topics` holds one or more subtopic codes.
  *

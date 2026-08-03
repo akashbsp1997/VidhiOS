@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { GROWTH_STAGES, HEALTH_STATES } from "../../lib/forest/growth.js";
 import PlantGlyph from "./PlantGlyph.jsx";
+import { createClient } from "../../lib/supabase/client.js";
 
 function lastAttemptedLabel(daysSince) {
   if (daysSince == null) return "not attempted yet";
@@ -10,10 +12,111 @@ function lastAttemptedLabel(daysSince) {
   return `attempted ${d} day${d === 1 ? "" : "s"} ago`;
 }
 
+const STATUS_LABEL = { pending: "Processing…", extracted: "Ready", needs_ocr: "Scanned — can't read yet", error: "Failed" };
+
+// A student's own procured material (Laxmikanth, Spectrum, PMF/Vision IAS,
+// etc.) for THIS subtopic -- private to them, never mixed into any other
+// user's grounding (see db/schema.js's personalSources). Uses the same
+// signed-upload-URL flow app/ingest/upload/page.jsx already established,
+// just against /api/my-sources instead of the admin /api/ingest routes.
+function PersonalSources({ subtopicId }) {
+  const [sources, setSources] = useState(null);
+  const [error, setError] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [stepMsg, setStepMsg] = useState(null);
+
+  function load() {
+    fetch(`/api/my-sources?subtopicId=${encodeURIComponent(subtopicId)}`)
+      .then((r) => r.json())
+      .then((d) => (d.error ? setError(d.error) : setSources(d.sources)))
+      .catch((e) => setError(e.message));
+  }
+
+  useEffect(() => {
+    setSources(null);
+    setError(null);
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subtopicId]);
+
+  async function handleUpload(e) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // lets the same file be picked again later
+    if (!file) return;
+    setBusy(true);
+    setError(null);
+    try {
+      setStepMsg("Requesting upload URL…");
+      const urlRes = await fetch("/api/my-sources/upload-url", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ subtopicId, filename: file.name }),
+      });
+      const urlData = await urlRes.json();
+      if (urlData.error) throw new Error(urlData.error);
+
+      setStepMsg("Uploading…");
+      const supabase = createClient();
+      const { error: uploadError } = await supabase.storage.from("personal-sources").uploadToSignedUrl(urlData.storagePath, urlData.token, file);
+      if (uploadError) throw new Error(uploadError.message);
+
+      setStepMsg("Extracting text…");
+      const finalizeRes = await fetch("/api/my-sources/finalize", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ subtopicId, storagePath: urlData.storagePath, title: file.name, fileSizeBytes: file.size }),
+      });
+      const finalizeData = await finalizeRes.json();
+      if (finalizeData.error) throw new Error(finalizeData.error);
+
+      load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+      setStepMsg(null);
+    }
+  }
+
+  function handleDelete(id) {
+    fetch(`/api/my-sources?id=${id}`, { method: "DELETE" })
+      .then((r) => r.json())
+      .then((d) => (d.error ? setError(d.error) : load()));
+  }
+
+  return (
+    <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid var(--rule)" }}>
+      <div className="forest-ladder-label">Your own material</div>
+      {error && <p style={{ fontSize: 12.5, color: "var(--accent-red)" }}>{error}</p>}
+      {sources?.length > 0 && (
+        <ul style={{ margin: "0 0 8px", padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 4 }}>
+          {sources.map((s) => (
+            <li key={s.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 13 }}>
+              <span>
+                {s.title} <span style={{ color: "var(--ink-soft)", fontSize: 11.5 }}>— {STATUS_LABEL[s.status] ?? s.status}</span>
+              </span>
+              <button className="btn" style={{ fontSize: 11, padding: "2px 8px" }} onClick={() => handleDelete(s.id)}>
+                Remove
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <label className="btn" style={{ fontSize: 12.5, cursor: busy ? "default" : "pointer", opacity: busy ? 0.6 : 1 }}>
+        {busy ? stepMsg || "Working…" : "＋ Upload a PDF you own"}
+        <input type="file" accept="application/pdf" onChange={handleUpload} disabled={busy} style={{ display: "none" }} />
+      </label>
+      <p style={{ fontSize: 11.5, color: "var(--ink-soft)", marginTop: 6 }}>
+        Private to you — grounds your own Teach content alongside NCERT and PYQs, never shown to other students.
+      </p>
+    </div>
+  );
+}
+
 // The tap target from ForestCanopy's plant grid -- growth ladder, health
-// strip, and a short "why" line (design doc §5's plant detail sheet), then
-// the exact same "Revise now" hand-off the List view's row link already
-// uses (/learn/{id}), unchanged.
+// strip, a short "why" line (design doc §5's plant detail sheet), the same
+// "Revise now" hand-off the List view's row link already uses (/learn/{id}),
+// and a place to add the student's own procured study material.
 export default function PlantDetailSheet({ subtopic, onClose }) {
   if (!subtopic) return null;
   const stageIdx = GROWTH_STAGES.findIndex((s) => s.id === subtopic.growthStage);
@@ -64,9 +167,12 @@ export default function PlantDetailSheet({ subtopic, onClose }) {
             Locked — reach {subtopic.requiredMasteryPct}% mastery on {subtopic.requiredSubtopicText} first
           </span>
         ) : (
-          <a className="btn btn-primary" href={`/learn/${subtopic.id}`}>
-            Revise now →
-          </a>
+          <>
+            <a className="btn btn-primary" href={`/learn/${subtopic.id}`}>
+              Revise now →
+            </a>
+            <PersonalSources subtopicId={subtopic.id} />
+          </>
         )}
       </div>
     </div>

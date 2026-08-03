@@ -292,7 +292,7 @@ export async function GET(request) {
     }
 
     if (phase === "teach") {
-      const saved = await ensureModuleStagePhase(row, subtopicRow, subjectConfig, "teach");
+      const saved = await ensureModuleStagePhase(row, subtopicRow, subjectConfig, "teach", userId);
       return NextResponse.json({
         subtopicId,
         subtopicText: subtopicRow.topicText,

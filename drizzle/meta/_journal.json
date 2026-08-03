@@ -232,6 +232,13 @@
       "when": 1785732819306,
       "tag": "0032_previous_major_mapleleaf",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1785733900404,
+      "tag": "0033_easy_betty_brant",
+      "breakpoints": true
     }
   ]
 }
