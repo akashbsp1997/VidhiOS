@@ -260,6 +260,13 @@
       "when": 1785747451474,
       "tag": "0036_majestic_blue_blade",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1785770414904,
+      "tag": "0037_equal_killraven",
+      "breakpoints": true
     }
   ]
 }

@@ -75,7 +75,7 @@ export async function GET(request) {
     const tables = await db.execute(sql`
       select table_name from information_schema.tables
       where table_schema = 'public'
-        and table_name in ('subjects', 'ingest_uploads', 'ingest_items', 'lesson_modules', 'subject_unlocks', 'mock_tests', 'mock_test_questions', 'flashcard_reviews', 'current_affairs_items', 'interview_profiles', 'interview_sessions', 'essay_topics', 'essay_guides', 'essay_attempts', 'question_model_answers', 'player_state', 'player_items', 'daily_mission_log', 'pace_checkpoints', 'monthly_digests', 'daily_results_digests', 'quant_lessons', 'weekly_plan_adjustments', 'personal_sources', 'pvp_attacks', 'daily_bounties')
+        and table_name in ('subjects', 'ingest_uploads', 'ingest_items', 'lesson_modules', 'subject_unlocks', 'mock_tests', 'mock_test_questions', 'flashcard_reviews', 'current_affairs_items', 'interview_profiles', 'interview_sessions', 'essay_topics', 'essay_guides', 'essay_attempts', 'question_model_answers', 'player_state', 'player_items', 'daily_mission_log', 'pace_checkpoints', 'monthly_digests', 'daily_results_digests', 'quant_lessons', 'weekly_plan_adjustments', 'personal_sources', 'pvp_attacks', 'daily_bounties', 'alliances', 'alliance_members')
     `);
     const compressedCols = await db.execute(sql`
       select table_name, column_name, data_type
@@ -107,6 +107,7 @@ export async function GET(request) {
       personalSourcesTableExists: tableNames.includes("personal_sources"),
       pvpAttacksTableExists: tableNames.includes("pvp_attacks"),
       dailyBountiesTableExists: tableNames.includes("daily_bounties"),
+      alliancesTablesExist: tableNames.includes("alliances") && tableNames.includes("alliance_members"),
       ingestTablesFound: tableNames.filter((n) => n.startsWith("ingest_")),
       newColumnsFound: cols.map((r) => `${r.table_name}.${r.column_name}`),
     });

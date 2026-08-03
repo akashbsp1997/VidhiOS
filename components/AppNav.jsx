@@ -27,6 +27,7 @@ const NAV_GROUPS = [
       { href: "/fill-blanks", label: "Fill the Blanks" },
       { href: "/flashcards", label: "Flashcards" },
       { href: "/arena", label: "Arena" },
+      { href: "/alliances", label: "Alliances" },
       { href: "/map", label: "World Map" },
       { href: "/shop", label: "Seed Shop" },
     ],

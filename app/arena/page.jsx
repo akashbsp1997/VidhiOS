@@ -247,6 +247,7 @@ export default function ArenaPage() {
             {opponents?.map((o) => (
               <div key={o.userId} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid var(--rule)" }}>
                 <span style={{ fontSize: 13.5 }}>
+                  {o.allianceTag && <b>[{o.allianceTag}] </b>}
                   {o.label} <span style={{ color: "var(--ink-soft)", fontSize: 12 }}>({Math.round(o.avgMastery * 100)}% mastery)</span>
                 </span>
                 <button className="btn" style={{ fontSize: 12, padding: "4px 10px" }} onClick={() => startAttackRound(o)}>

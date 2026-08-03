@@ -11,7 +11,7 @@ function Pin({ entry, isSelf }) {
   const size = 22 + entry.matureCount * 1.5;
   return (
     <div
-      title={`${isSelf ? "You" : entry.label} -- ${entry.estateTier.label}, ${entry.matureCount} mature plants, ${Math.round(entry.avgMastery * 100)}% mastery${entry.ornaments.length ? " -- " + entry.ornaments.join(", ") : ""}`}
+      title={`${isSelf ? "You" : entry.label}${entry.allianceTag ? ` [${entry.allianceTag}]` : ""} -- ${entry.estateTier.label}, ${entry.matureCount} mature plants, ${Math.round(entry.avgMastery * 100)}% mastery${entry.ornaments.length ? " -- " + entry.ornaments.join(", ") : ""}`}
       style={{
         position: "absolute",
         left: `${entry.x * 92 + 4}%`,
@@ -34,7 +34,10 @@ function Pin({ entry, isSelf }) {
       {entry.ornaments.length > 0 && (
         <span style={{ fontSize: 11 }}>{entry.ornaments.map((o) => ORNAMENT_ICON[o] ?? "🏅").join("")}</span>
       )}
-      <span style={{ fontSize: 9.5, color: "var(--ink-soft)", whiteSpace: "nowrap" }}>{isSelf ? "You" : entry.label}</span>
+      <span style={{ fontSize: 9.5, color: "var(--ink-soft)", whiteSpace: "nowrap" }}>
+        {entry.allianceTag && <b>[{entry.allianceTag}] </b>}
+        {isSelf ? "You" : entry.label}
+      </span>
     </div>
   );
 }
