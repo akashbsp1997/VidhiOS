@@ -95,13 +95,17 @@ export async function GET(request) {
       // above: never affects locking/ordering.
       ...(() => {
         const m = masteryBySubtopic[s.id];
-        const { growthStage, health } = deriveForestState({
+        const { growthStage, health, retention, daysSince } = deriveForestState({
           growthStage: m?.growthStage ?? "seed",
           checkpointScore: m?.lastRetentionCheckpoint?.score,
           checkpointAt: m?.lastRetentionCheckpoint?.at,
           easeFactor: m?.retentionEaseFactor,
         });
-        return { growthStage, health };
+        // retentionPct/daysSinceCheckpoint: only PlantDetailSheet's "why"
+        // line reads these (the List-view health dot doesn't need them) --
+        // included here anyway since it's the same already-computed object,
+        // not a second call.
+        return { growthStage, health, retentionPct: Math.round(retention * 100), daysSinceCheckpoint: daysSince };
       })(),
     }));
 

@@ -3,6 +3,15 @@
 import { useEffect, useState, use } from "react";
 import { findPaperTile, isOptionalTile, isCompulsoryLanguageTile } from "../../../../lib/subjects/papers.js";
 import CollapsibleSection from "../../../../components/CollapsibleSection.jsx";
+import ForestCanopy from "../../../../components/forest/ForestCanopy.jsx";
+import PlantDetailSheet from "../../../../components/forest/PlantDetailSheet.jsx";
+
+// Bloom Knowledge Forest (design doc §4/§20) -- forest is an equal-weight
+// alternate rendering of this same page's data, not a settings checkbox
+// buried somewhere else; List stays the default on first visit (a brand
+// new UI mode shouldn't surprise an existing user), the choice persists
+// locally per-device once made.
+const VIEW_PREF_KEY = "bloom-subtopic-view";
 
 const STAGE_LABEL = { teach: "Teach", grasp: "Grasp", remember: "Remember", test: "Test" };
 const SELF_STATUS_LABEL = { "not-started": "Not started", "in-progress": "In progress", done: "Done" };
@@ -61,6 +70,21 @@ export default function PaperSubtopicsPage({ params }) {
   const [error, setError] = useState(null);
   const [unlockPasses, setUnlockPasses] = useState([]);
   const [usingPassFor, setUsingPassFor] = useState(null);
+  const [viewMode, setViewMode] = useState("list"); // 'list' | 'forest'
+  const [selectedPlant, setSelectedPlant] = useState(null);
+
+  // Read the saved preference after mount, not during the initial render --
+  // localStorage isn't available server-side, and reading it synchronously
+  // during render would mismatch Next's server-rendered HTML.
+  useEffect(() => {
+    const saved = window.localStorage.getItem(VIEW_PREF_KEY);
+    if (saved === "forest" || saved === "list") setViewMode(saved);
+  }, []);
+
+  function changeViewMode(mode) {
+    setViewMode(mode);
+    window.localStorage.setItem(VIEW_PREF_KEY, mode);
+  }
 
   function loadSubtopics() {
     fetch(`/api/subtopics?subjectId=${encodeURIComponent(subjectId)}&paper=${paper}`)
@@ -216,6 +240,18 @@ export default function PaperSubtopicsPage({ params }) {
         regardless of this order — nothing is ever fully benched.
       </p>
 
+      {/* Bloom Knowledge Forest (design doc §4) -- List stays the exact
+          same component as before; Forest is an equal-weight alternate
+          rendering of the identical grouped data below, not a hedge. */}
+      <div className="segmented" role="group" aria-label="View">
+        <button type="button" className={`seg${viewMode === "list" ? " active" : ""}`} onClick={() => changeViewMode("list")}>
+          List
+        </button>
+        <button type="button" className={`seg${viewMode === "forest" ? " active" : ""}`} onClick={() => changeViewMode("forest")}>
+          🌳 Forest
+        </button>
+      </div>
+
       {(() => {
         // Grouped by real syllabus section (already tracked per subtopic --
         // see db/schema.js's subtopics.section) into collapsible tree
@@ -223,7 +259,9 @@ export default function PaperSubtopicsPage({ params }) {
         // logic below is unchanged -- it's computed from `i`, this subtopic's
         // position in the FULL visibleSubtopics sequence, not its position
         // within its section, so basics-to-advanced ordering still holds
-        // exactly as before, just visually bucketed.
+        // exactly as before, just visually bucketed. Built as ONE raw
+        // grouped structure (not JSX) so both the List rows below and
+        // ForestCanopy render from the identical data.
         const sectionOrder = [];
         const bySection = new Map();
         visibleSubtopics.forEach((s, i) => {
@@ -231,66 +269,74 @@ export default function PaperSubtopicsPage({ params }) {
             bySection.set(s.section, []);
             sectionOrder.push(s.section);
           }
-
           const fadeStep = firstLockedIndex === -1 ? -1 : i - firstLockedIndex;
           const opacity = fadeStep >= 0 ? FADE_OPACITIES[Math.min(fadeStep, FADE_OPACITIES.length - 1)] : undefined;
-          bySection.get(s.section).push(
-            <div className={`subtopic-row${s.locked ? " locked" : ""}`} style={opacity != null ? { opacity } : undefined} key={s.id}>
-              <span className="row-dots">
-                <span
-                  className={`self-status-dot self-status-${s.selfStatus}`}
-                  title={`Your own status: ${SELF_STATUS_LABEL[s.selfStatus] ?? "Not started"} (separate from AI-graded mastery)`}
-                />
-                <span
-                  className={`mastery-health-dot mastery-health-${s.health}`}
-                  title={`Retention: ${HEALTH_LABEL[s.health] ?? s.health} -- fades over time since your last attempt, revisit to keep it up`}
-                />
-              </span>
-              <span className="subtopic-code">{s.id}</span>
-              <span className="subtopic-text">
-                {s.locked ? <span>{s.topicText}</span> : <a href={`/learn/${s.id}`}>{s.topicText}</a>}
-                <div className="subtopic-meta">
-                  {s.locked ? (
-                    <span className="locked-pill">
-                      Locked — reach {s.requiredMasteryPct}% mastery on {s.requiredSubtopicText} first (
-                      {s.currentMasteryPct}%/{s.requiredMasteryPct}%)
-                      {unlockPasses.length > 0 && (
-                        <button
-                          className="btn"
-                          style={{ marginLeft: 8, fontSize: 11, padding: "2px 8px" }}
-                          disabled={usingPassFor === s.id}
-                          onClick={() => useEarlyAccessPass(s.id)}
-                        >
-                          {usingPassFor === s.id ? "Using…" : "🎟 Use early access pass"}
-                        </button>
-                      )}
-                    </span>
-                  ) : (
-                    <>
-                      {s.section} · {s.pyqFrequency} PYQ appearance{s.pyqFrequency === 1 ? "" : "s"} · {s.attemptsCount}{" "}
-                      attempted ·{" "}
-                      <a href={`/sources/${s.id}`}>
-                        {s.sourceCount} source{s.sourceCount === 1 ? "" : "s"}
-                      </a>
-                    </>
-                  )}
-                </div>
-              </span>
-              <span className="tier-pill" style={{ fontSize: 11 }}>
-                {difficultyLabel(s.difficultyScore)}
-              </span>
-              <span className={`stage-pill stage-${s.stage}`}>{STAGE_LABEL[s.stage]}</span>
-              <span className={`tier-pill${s.currentTier === 3 ? " t3" : ""}`}>tier {s.currentTier}</span>
-              <span className="bar" title={`${Math.round(s.masteryScore * 100)}% mastery`}>
-                <span style={{ width: `${Math.round(s.masteryScore * 100)}%` }} />
-              </span>
-            </div>
-          );
+          bySection.get(s.section).push({ ...s, opacity });
         });
 
+        if (viewMode === "forest") {
+          return <ForestCanopy sectionOrder={sectionOrder} bySection={bySection} onSelect={setSelectedPlant} />;
+        }
+
         return sectionOrder.map((section, idx) => (
-          <CollapsibleSection title={section} meta={`${bySection.get(section).length} topic${bySection.get(section).length === 1 ? "" : "s"}`} defaultOpen={idx === 0} key={section}>
-            {bySection.get(section)}
+          <CollapsibleSection
+            title={section}
+            meta={`${bySection.get(section).length} topic${bySection.get(section).length === 1 ? "" : "s"}`}
+            defaultOpen={idx === 0}
+            key={section}
+          >
+            {bySection.get(section).map((s) => (
+              <div className={`subtopic-row${s.locked ? " locked" : ""}`} style={s.opacity != null ? { opacity: s.opacity } : undefined} key={s.id}>
+                <span className="row-dots">
+                  <span
+                    className={`self-status-dot self-status-${s.selfStatus}`}
+                    title={`Your own status: ${SELF_STATUS_LABEL[s.selfStatus] ?? "Not started"} (separate from AI-graded mastery)`}
+                  />
+                  <span
+                    className={`mastery-health-dot mastery-health-${s.health}`}
+                    title={`Retention: ${HEALTH_LABEL[s.health] ?? s.health} -- fades over time since your last attempt, revisit to keep it up`}
+                  />
+                </span>
+                <span className="subtopic-code">{s.id}</span>
+                <span className="subtopic-text">
+                  {s.locked ? <span>{s.topicText}</span> : <a href={`/learn/${s.id}`}>{s.topicText}</a>}
+                  <div className="subtopic-meta">
+                    {s.locked ? (
+                      <span className="locked-pill">
+                        Locked — reach {s.requiredMasteryPct}% mastery on {s.requiredSubtopicText} first (
+                        {s.currentMasteryPct}%/{s.requiredMasteryPct}%)
+                        {unlockPasses.length > 0 && (
+                          <button
+                            className="btn"
+                            style={{ marginLeft: 8, fontSize: 11, padding: "2px 8px" }}
+                            disabled={usingPassFor === s.id}
+                            onClick={() => useEarlyAccessPass(s.id)}
+                          >
+                            {usingPassFor === s.id ? "Using…" : "🎟 Use early access pass"}
+                          </button>
+                        )}
+                      </span>
+                    ) : (
+                      <>
+                        {s.section} · {s.pyqFrequency} PYQ appearance{s.pyqFrequency === 1 ? "" : "s"} · {s.attemptsCount}{" "}
+                        attempted ·{" "}
+                        <a href={`/sources/${s.id}`}>
+                          {s.sourceCount} source{s.sourceCount === 1 ? "" : "s"}
+                        </a>
+                      </>
+                    )}
+                  </div>
+                </span>
+                <span className="tier-pill" style={{ fontSize: 11 }}>
+                  {difficultyLabel(s.difficultyScore)}
+                </span>
+                <span className={`stage-pill stage-${s.stage}`}>{STAGE_LABEL[s.stage]}</span>
+                <span className={`tier-pill${s.currentTier === 3 ? " t3" : ""}`}>tier {s.currentTier}</span>
+                <span className="bar" title={`${Math.round(s.masteryScore * 100)}% mastery`}>
+                  <span style={{ width: `${Math.round(s.masteryScore * 100)}%` }} />
+                </span>
+              </div>
+            ))}
           </CollapsibleSection>
         ));
       })()}
@@ -300,6 +346,8 @@ export default function PaperSubtopicsPage({ params }) {
           +{hiddenCount} more subtopic{hiddenCount === 1 ? "" : "s"} — keep mastering the ones above to reveal them.
         </p>
       )}
+
+      <PlantDetailSheet subtopic={selectedPlant} onClose={() => setSelectedPlant(null)} />
     </>
   );
 }
