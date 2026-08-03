@@ -937,6 +937,220 @@ export const quantLessons = pgTable("quant_lessons", {
  * prioritized on revise days), never as a full alternate schedule. Mirrors
  * pace_checkpoints' composite-PK, "written once per window" shape.
  */
+// ============================================================================
+// Legal Case Manager (2026-07-27) -- a second, self-contained product living
+// in the same app: document ingestion (image/PDF, OCR'd via Gemini vision --
+// see lib/legal/extractDocument.js) that helps a user set up and run a real
+// legal/administrative case -- parties, forum selection, hearing/deadline
+// tracking, and AI-assisted drafting. Deliberately separate tables from the
+// exam-prep schema above (nothing here is exam content), all prefixed
+// `legal` so they group together and never collide with the unprefixed
+// exam-prep table names. Every table is scoped to the owning user (directly
+// via userId, or transitively via caseId -> legalCases.userId) -- there is
+// no shared/global data in this feature, unlike subtopics/sources/pyqs above.
+// ============================================================================
+
+/**
+ * One row per case a user is tracking -- the hub every other legal_* table
+ * (except legalDocuments, which can exist standalone before being attached)
+ * hangs off of via caseId. `status` is the case's own lifecycle, independent
+ * of any single hearing's status (see legalCaseEvents below). `forumId`
+ * points at the catalog (legalForums) once a forum is actually chosen;
+ * `courtName` is free text for the specific bench/branch (e.g. "Delhi
+ * District Consumer Commission, Saket") since the catalog models forum
+ * TYPES, not every physical registry. `subjectMatter` is a short free-text
+ * tag (e.g. "consumer dispute", "cheque bounce") -- the main signal
+ * lib/legal/forumRecommend.js matches against legalForums.subjectTags.
+ */
+export const legalCases = pgTable("legal_cases", {
+  id: serial("id").primaryKey(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => authUsers.id),
+  title: text("title").notNull(),
+  caseNumber: text("case_number"), // filled in once actually filed/allotted; null for a case still being prepared
+  caseType: text("case_type").notNull().default("other"), // 'civil' | 'criminal' | 'writ' | 'consumer' | 'administrative' | 'family' | 'labour' | 'tax' | 'arbitration' | 'other'
+  status: text("status").notNull().default("draft"), // 'draft' | 'active' | 'stayed' | 'disposed' | 'closed'
+  forumId: integer("forum_id").references(() => legalForums.id),
+  courtName: text("court_name"), // specific bench/branch, free text -- distinct from forumId's catalog TYPE
+  jurisdictionState: text("jurisdiction_state"),
+  causeOfAction: text("cause_of_action"), // the underlying wrong/dispute, in the user's own words
+  subjectMatter: text("subject_matter"), // short tag used for forum matching, e.g. "consumer dispute"
+  claimAmount: real("claim_amount"), // pecuniary value in dispute, null if not applicable/known
+  filingDate: timestamp("filing_date"),
+  description: text("description").notNull().default(""),
+  // Set only when this case was created via "Create case from this document"
+  // on the upload/review screen -- traceability back to the source filing,
+  // never required (a manually-created case leaves this null).
+  sourceDocumentId: integer("source_document_id"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+/**
+ * One row per party (or advocate) attached to a case -- the "party
+ * selection" surface: who's on which side, and who represents them.
+ * `role` is deliberately broad enough to cover both civil (plaintiff/
+ * defendant) and writ/criminal (petitioner/respondent, appellant) naming --
+ * the UI picks the relevant subset based on legalCases.caseType, but the
+ * column itself doesn't enforce that (a party record long outlives any one
+ * case-type-driven label choice, and cases sometimes get re-typed).
+ */
+export const legalParties = pgTable("legal_parties", {
+  id: serial("id").primaryKey(),
+  caseId: integer("case_id")
+    .notNull()
+    .references(() => legalCases.id),
+  role: text("role").notNull(), // 'petitioner' | 'respondent' | 'plaintiff' | 'defendant' | 'appellant' | 'applicant' | 'opposite_party' | 'witness' | 'advocate' | 'third_party'
+  name: text("name").notNull(),
+  partyType: text("party_type").notNull().default("individual"), // 'individual' | 'organization' | 'government'
+  contactInfo: jsonb("contact_info").notNull().default({}), // { address, phone, email }
+  advocateName: text("advocate_name"), // this party's own representing advocate, if any -- distinct from a standalone role:'advocate' row (this app's own user acting as/with counsel)
+  notes: text("notes").notNull().default(""),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+/**
+ * Catalog of forum/court TYPES a case can be recommended into -- reference
+ * data (seeded, see db/seed/legal-forums.js), not per-user. Deliberately
+ * models common Indian forums generically (by type and jurisdiction level),
+ * not a directory of every physical court/bench -- pecuniary limits are
+ * indicative (several vary by state amendment; see `notes`) and meant to
+ * narrow a user's options, not substitute for verifying the current local
+ * limit before filing. lib/legal/forumRecommend.js is the only reader that
+ * scores against this table; legalCases.forumId just points at whichever
+ * row the user ultimately picked.
+ */
+export const legalForums = pgTable(
+  "legal_forums",
+  {
+    id: serial("id").primaryKey(),
+    name: text("name").notNull(),
+    forumType: text("forum_type").notNull(), // 'civil_court' | 'criminal_court' | 'high_court' | 'supreme_court' | 'consumer_forum' | 'family_court' | 'labour_court' | 'tribunal' | 'revenue_court' | 'arbitration' | 'police' | 'other'
+    level: text("level").notNull(), // 'local' | 'district' | 'state' | 'national'
+    description: text("description").notNull().default(""),
+    pecuniaryMin: real("pecuniary_min"), // null = no floor
+    pecuniaryMax: real("pecuniary_max"), // null = no ceiling
+    subjectTags: text("subject_tags").array().notNull().default([]), // e.g. ['consumer','goods','service'] -- matched against legalCases.subjectMatter
+    caseTypeTags: text("case_type_tags").array().notNull().default([]), // subset of legalCases.caseType values this forum actually handles
+    appealsTo: text("appeals_to"), // free text, e.g. "State Consumer Disputes Redressal Commission"
+    notes: text("notes").notNull().default(""), // caveats, e.g. "pecuniary limits vary by state notification -- verify current limit before filing"
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => ({
+    // Lets db/seed/legal-forums.js (and app/api/setup) upsert-by-name safely
+    // on every re-run, same "safe to revisit" pattern as the exam-prep seed
+    // routes -- a forum's own catalog identity is its name, there's no other
+    // natural key.
+    nameUnique: unique("legal_forums_name_unique").on(table.name),
+  })
+);
+
+/**
+ * One row per uploaded document -- image or PDF, OCR'd and structured in a
+ * single Gemini vision call (lib/legal/extractDocument.js) rather than the
+ * exam-prep pipeline's separate text-extract-then-structure phases, since a
+ * scanned legal document (the common case) has no text layer for pdf-parse
+ * to find anyway. `caseId` is nullable: a document can be uploaded and
+ * reviewed BEFORE a case exists (the normal flow -- see app/legal/upload),
+ * then either attached to an existing case or used to create a new one via
+ * legalCases.sourceDocumentId.
+ */
+export const legalDocuments = pgTable("legal_documents", {
+  id: serial("id").primaryKey(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => authUsers.id),
+  caseId: integer("case_id").references(() => legalCases.id),
+  docType: text("doc_type").notNull().default("other"), // 'pleading' | 'evidence' | 'notice' | 'judgment' | 'order' | 'id_proof' | 'contract' | 'correspondence' | 'other'
+  storagePath: text("storage_path").notNull(), // object key within the 'legal-documents' bucket
+  originalFilename: text("original_filename").notNull(),
+  fileMimeType: text("file_mime_type").notNull(), // 'application/pdf' | 'image/jpeg' | 'image/png' | 'image/webp'
+  fileSizeBytes: integer("file_size_bytes").notNull(),
+  contentHash: text("content_hash").notNull(), // sha256 of the raw bytes -- exact-duplicate detection, same pattern as ingestUploads
+  status: text("status").notNull().default("uploaded"), // 'uploaded' -> 'extracted' | 'error'
+  // Best-effort OCR transcript, stored gzip-compressed (see
+  // lib/db/compressedText.js) -- kept for the user to read/search, distinct
+  // from extractedData's structured fields below.
+  extractedText: compressedText("extracted_text"),
+  // Structured extraction result, shaped per lib/legal/extractDocument.js:
+  // { documentTitle, documentDate, caseNumberFound, courtFound, docTypeGuess,
+  //   parties: [{name, role}], keyDates: [{label, date}],
+  //   amounts: [{label, amount}], summary }. Empty object until extraction
+  // succeeds; every field inside is AI-suggested and shown to the user to
+  // review/edit before it feeds a new case, never written into legalCases
+  // directly.
+  extractedData: jsonb("extracted_data").notNull().default({}),
+  errorMsg: text("error_msg"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  extractedAt: timestamp("extracted_at"),
+});
+
+/**
+ * Hearing dates, filing/limitation deadlines, and other case-date tracking
+ * -- the "tracking case dates" surface. `status` starts 'upcoming' and is
+ * moved on by the user (completed/adjourned) or by a future reminder cron;
+ * nothing here auto-computes limitation periods (that would need per-Act
+ * rules well beyond this feature's scope) -- dates are user- or
+ * draft-entered, this table just tracks and surfaces them.
+ */
+export const legalCaseEvents = pgTable("legal_case_events", {
+  id: serial("id").primaryKey(),
+  caseId: integer("case_id")
+    .notNull()
+    .references(() => legalCases.id),
+  eventType: text("event_type").notNull(), // 'hearing' | 'filing_deadline' | 'limitation_deadline' | 'order_pronounced' | 'reminder' | 'other'
+  title: text("title").notNull(),
+  eventDate: timestamp("event_date").notNull(),
+  description: text("description").notNull().default(""),
+  status: text("status").notNull().default("upcoming"), // 'upcoming' | 'completed' | 'missed' | 'adjourned'
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+/**
+ * One row per drafted document (petition, notice, application, ...) for a
+ * case -- `content` always holds the CURRENT text; every save that changes
+ * it also appends a legalDraftVersions row first (see
+ * app/api/legal/drafts/[id]/route.js), so `currentVersion` here is always
+ * reproducible from that history. `generatedByAi` marks a draft whose
+ * current content was last written by lib/legal/generateDraft.js rather
+ * than hand-edited -- purely informational (e.g. a "review before filing"
+ * banner), nothing branches on it.
+ */
+export const legalDrafts = pgTable("legal_drafts", {
+  id: serial("id").primaryKey(),
+  caseId: integer("case_id")
+    .notNull()
+    .references(() => legalCases.id),
+  draftType: text("draft_type").notNull(), // 'petition' | 'plaint' | 'written_statement' | 'affidavit' | 'legal_notice' | 'application' | 'reply' | 'appeal' | 'rejoinder' | 'other'
+  title: text("title").notNull(),
+  content: text("content").notNull().default(""),
+  currentVersion: integer("current_version").notNull().default(1),
+  status: text("status").notNull().default("draft"), // 'draft' | 'final'
+  generatedByAi: boolean("generated_by_ai").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+/**
+ * Append-only version history for legalDrafts -- one row per SAVED revision
+ * (not every keystroke), written just before legalDrafts.content is
+ * overwritten so version N's content is always what was live immediately
+ * before version N+1 replaced it. `editSummary` is optional, user- or
+ * AI-provided ("regenerated per court's format", "fixed respondent's
+ * address").
+ */
+export const legalDraftVersions = pgTable("legal_draft_versions", {
+  id: serial("id").primaryKey(),
+  draftId: integer("draft_id")
+    .notNull()
+    .references(() => legalDrafts.id),
+  versionNumber: integer("version_number").notNull(),
+  content: text("content").notNull(),
+  editSummary: text("edit_summary").notNull().default(""),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 export const weeklyPlanAdjustments = pgTable(
   "weekly_plan_adjustments",
   {
