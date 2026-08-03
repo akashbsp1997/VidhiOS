@@ -11,8 +11,11 @@ import TimeSceneChallenge from "./TimeSceneChallenge.jsx";
 import Timeline from "./Timeline.jsx";
 import ComparisonDuel from "./ComparisonDuel.jsx";
 import NetworkExplorer from "./NetworkExplorer.jsx";
+import ModeSelector from "./ModeSelector.jsx";
+import ModuleBlankdown from "./ModuleBlankdown.jsx";
 import { isStageUnlocked } from "../lib/adaptive/unlocks.js";
 import { bulletLines } from "../lib/text/bullets.js";
+import { modeById, DEFAULT_MODE_ID, loadSavedMode, saveMode } from "../lib/rpg/modes.js";
 
 const MAX_STAGE_FETCH_ITERATIONS = 5;
 
@@ -136,10 +139,41 @@ export default function ModuleLearnFlow({ subtopicId, subjectDisplayName, subtop
   // Only one open at a time; all four are optional enrichment, none gate
   // progression (see each component's own header comment).
   const [activeMinigame, setActiveMinigame] = useState(null);
+  // Which learning mode drives the PRIMARY widget shown at each stage (see
+  // lib/rpg/modes.js) -- a presentation choice layered over the stage
+  // machine above, never a second copy of it. Starts at the shared default
+  // and is corrected from localStorage after mount (not during the initial
+  // render -- localStorage isn't available server-side, and reading it
+  // synchronously during render would mismatch Next's server-rendered
+  // HTML, same convention as app/papers/[subjectId]/[paper]'s Forest/List
+  // view preference).
+  const [modeId, setModeId] = useState(DEFAULT_MODE_ID);
+  const mode = modeById(modeId);
+
+  useEffect(() => {
+    setModeId(loadSavedMode());
+  }, []);
+
+  function changeMode(id) {
+    setModeId(id);
+    saveMode(id);
+  }
 
   useEffect(() => {
     setActiveMinigame(null);
   }, [moduleIndex]);
+
+  // Remember-stage auto-open: each mode has one PRIMARY minigame there
+  // (story/game modes) -- opened automatically on arrival so the default
+  // experience is already in-game, not a click away. Advanced/rapidfire
+  // deliberately open nothing here (their Remember is meant to be fast).
+  useEffect(() => {
+    if (stage !== "remember") return;
+    if (mode.rememberPrimary === "story") setActiveMinigame("story");
+    else if (mode.rememberPrimary === "evidence") setActiveMinigame("evidence");
+    else if (mode.rememberPrimary === "blankdown") setActiveMinigame("blankdown");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stage, moduleIndex, modeId]);
 
   // Picks up where the dispatcher's own fetch left off, if it wasn't
   // immediately ready (e.g. it only just ran the module-planning phase, or
@@ -245,20 +279,34 @@ export default function ModuleLearnFlow({ subtopicId, subjectDisplayName, subtop
   const isLastModule = moduleIndex === modules.length - 1;
   const nextModule = !isLastModule ? modules[moduleIndex + 1] : null;
 
+  // "compact" (Advanced mode) skips the full read-through entirely --
+  // keyPoints only, for speed. "narrative" (Story mode) renders the same
+  // bulleted teachContent as flowing story-like paragraphs instead of a
+  // bare list -- the content is already written as a narrative arc (see
+  // buildModuleTeachSystem), this just reads that way visually too.
   const teachPanels = moduleContent.teachContent
     ? [
-        {
+        mode.teachPrimary !== "compact" && {
           key: "concept",
           label: "Concept",
-          node: (
-            <ul style={{ paddingLeft: 20, fontSize: 14.5, lineHeight: 1.7 }}>
-              {bulletLines(moduleContent.teachContent).map((line, i) => (
-                <li key={i} style={{ marginBottom: 6 }}>
-                  {line}
-                </li>
-              ))}
-            </ul>
-          ),
+          node:
+            mode.teachPrimary === "narrative" ? (
+              <div style={{ fontSize: 15, lineHeight: 1.9, fontStyle: "italic" }}>
+                {bulletLines(moduleContent.teachContent).map((line, i) => (
+                  <p key={i} style={{ margin: "0 0 10px" }}>
+                    {line}
+                  </p>
+                ))}
+              </div>
+            ) : (
+              <ul style={{ paddingLeft: 20, fontSize: 14.5, lineHeight: 1.7 }}>
+                {bulletLines(moduleContent.teachContent).map((line, i) => (
+                  <li key={i} style={{ marginBottom: 6 }}>
+                    {line}
+                  </li>
+                ))}
+              </ul>
+            ),
         },
         moduleContent.keyPoints?.length > 0 && {
           key: "keypoints",
@@ -364,6 +412,9 @@ export default function ModuleLearnFlow({ subtopicId, subjectDisplayName, subtop
         <a href={`/book/${encodeURIComponent(subtopicId)}`}>📖 Read as a book →</a>
       </p>
 
+      <ModeSelector modeId={modeId} onChange={changeMode} />
+      <p className="section-hint" style={{ marginTop: -6, marginBottom: 10 }}>{mode.tagline}</p>
+
       <LevelMap subtopicId={subtopicId} modules={modules} moduleIndex={moduleIndex} onSelect={goToModule} />
       <p className="section-hint" style={{ marginBottom: 12 }}>
         {currentModule?.articleRef && (
@@ -404,13 +455,25 @@ export default function ModuleLearnFlow({ subtopicId, subjectDisplayName, subtop
           <h2>Teach</h2>
           <Timeline events={moduleContent.timelineEvents} />
           {teachPanels.length > 0 ? (
-            <StageModules
-              modules={teachPanels}
-              panelIndex={panelIndex}
-              setPanelIndex={setPanelIndex}
-              onComplete={() => goToModuleStage(moduleIndex, "grasp", "advance")}
-              completeLabel="Continue to Grasp →"
-            />
+            <>
+              {mode.teachPrimary === "crates" && moduleContent.keyPoints?.length > 0 && (
+                <div className="card" style={{ marginBottom: 12, background: "var(--surface-2)" }}>
+                  <LootCrates keyPoints={moduleContent.keyPoints} />
+                </div>
+              )}
+              {mode.teachPrimary === "blankdown" && moduleContent.teachContent && (
+                <div className="card" style={{ marginBottom: 12, background: "var(--surface-2)" }}>
+                  <ModuleBlankdown key={currentModule.id} moduleId={currentModule.id} teachContent={moduleContent.teachContent} onDone={() => {}} />
+                </div>
+              )}
+              <StageModules
+                modules={teachPanels}
+                panelIndex={panelIndex}
+                setPanelIndex={setPanelIndex}
+                onComplete={() => goToModuleStage(moduleIndex, "grasp", "advance")}
+                completeLabel="Continue to Grasp →"
+              />
+            </>
           ) : (
             <div className="loading">{"Preparing Teach content…"}</div>
           )}
@@ -420,6 +483,11 @@ export default function ModuleLearnFlow({ subtopicId, subjectDisplayName, subtop
       {stage === "grasp" && (
         <div className="card">
           <h2>Grasp</h2>
+          {mode.graspPrimary === "skip" && practiceReady && (
+            <button className="btn btn-primary" style={{ marginBottom: 12 }} onClick={() => goToModuleStage(moduleIndex, "remember", "advance")}>
+              ⏩ Fast-forward to Remember →
+            </button>
+          )}
           {!practiceReady ? (
             <div className="loading">{"Preparing Grasp content…"}</div>
           ) : graspPanels.length > 0 ? (
@@ -461,7 +529,12 @@ export default function ModuleLearnFlow({ subtopicId, subjectDisplayName, subtop
             />
           )}
 
-          {practiceReady && activeMinigame === null && (
+          {/* Advanced mode's Remember is meant to be fast -- no minigame
+              row, straight to the Continue/Start Test button above. Every
+              other mode gets the full row, with the mode's own
+              rememberPrimary already auto-opened (see the useEffect
+              above) rather than requiring an extra click. */}
+          {practiceReady && activeMinigame === null && mode.rememberPrimary !== "compact" && (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
               <button className="btn" onClick={() => setActiveMinigame("story")}>
                 🎭 Play the story
@@ -474,6 +547,9 @@ export default function ModuleLearnFlow({ subtopicId, subjectDisplayName, subtop
               </button>
               <button className="btn" onClick={() => setActiveMinigame("scene")}>
                 🌀 Step into the scene
+              </button>
+              <button className="btn" onClick={() => setActiveMinigame("blankdown")}>
+                🔫 Rapidfire blankdown
               </button>
               {moduleContent.comparisonData && (
                 <button className="btn" onClick={() => setActiveMinigame("comparison")}>
@@ -510,6 +586,14 @@ export default function ModuleLearnFlow({ subtopicId, subjectDisplayName, subtop
             </div>
           )}
           {activeMinigame === "scene" && <TimeSceneChallenge subtopicId={subtopicId} moduleIndex={moduleIndex} onClose={() => setActiveMinigame(null)} />}
+          {activeMinigame === "blankdown" && moduleContent.teachContent && (
+            <div className="card" style={{ marginTop: 10 }}>
+              <ModuleBlankdown key={currentModule.id} moduleId={currentModule.id} teachContent={moduleContent.teachContent} onDone={() => setActiveMinigame(null)} />
+              <button className="btn" style={{ marginTop: 10 }} onClick={() => setActiveMinigame(null)}>
+                Close
+              </button>
+            </div>
+          )}
           {activeMinigame === "comparison" && moduleContent.comparisonData && (
             <div className="card" style={{ marginTop: 10 }}>
               <ComparisonDuel moduleId={currentModule.id} comparisonData={moduleContent.comparisonData} />
@@ -531,7 +615,14 @@ export default function ModuleLearnFlow({ subtopicId, subjectDisplayName, subtop
 
       {stage === "test" && (
         <div className="card">
-          <h2>Test</h2>
+          <h2>
+            Test
+            {(modeId === "advanced" || modeId === "rapidfire") && (
+              <span className="tier-pill" style={{ marginLeft: 8, fontSize: 11 }}>
+                ⚡ Fast mode
+              </span>
+            )}
+          </h2>
           <ModuleTestPanel
             subtopicId={subtopicId}
             moduleId={currentModule.id}
