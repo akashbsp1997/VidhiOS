@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import ModuleTestPanel from "./ModuleTestPanel.jsx";
 import LockdownNotice from "./LockdownNotice.jsx";
 import StoryMode from "./StoryMode.jsx";
+import LevelMap from "./LevelMap.jsx";
 import { isStageUnlocked } from "../lib/adaptive/unlocks.js";
 import { bulletLines } from "../lib/text/bullets.js";
 
@@ -352,22 +353,9 @@ export default function ModuleLearnFlow({ subtopicId, subjectDisplayName, subtop
         <a href={`/sources/${encodeURIComponent(subtopicId)}`}>Browse grounding sources (NCERT, govt, current affairs) →</a>
       </p>
 
-      <div className="segmented" style={{ marginBottom: 8 }}>
-        {modules.map((m, i) => (
-          <button
-            key={m.id}
-            className={`seg${i === moduleIndex ? " active" : ""}${m.locked ? " locked" : ""}`}
-            onClick={() => goToModule(i)}
-            disabled={m.locked}
-            title={m.locked ? lockReasonLabel(m.lockReason) : undefined}
-          >
-            {m.locked ? "🔒 " : ""}
-            {i + 1}. {m.title}
-          </button>
-        ))}
-      </div>
+      <LevelMap subtopicId={subtopicId} modules={modules} moduleIndex={moduleIndex} onSelect={goToModule} />
       <p className="section-hint" style={{ marginBottom: 12 }}>
-        Module {moduleIndex + 1} of {modules.length} — {currentModule?.scopeNote}
+        {currentModule?.scopeNote}
         {currentModule?.pyqId && (
           <>
             {" "}

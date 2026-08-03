@@ -1,17 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { themeForSubtopic } from "../lib/rpg/themes.js";
 
 // The RPG hook shown once per (student, subtopic), before any teaching --
 // see app/api/dragon-challenge/route.js. Submitting (not being graded) is
 // what completes it: grading happens in tonight's batch run, same
 // convention as every other free-text answer in this app, so `onDone` fires
-// right after a successful POST rather than waiting on a score.
+// right after a successful POST rather than waiting on a score. The guide
+// character/theme (dragon, sci-fi AI, unicorn, ...) is deterministic per
+// subtopic -- see lib/rpg/themes.js -- not randomized on each visit.
 export default function DragonChallenge({ subtopicId, onDone }) {
   const [challenge, setChallenge] = useState(null);
   const [error, setError] = useState(null);
   const [answerText, setAnswerText] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const theme = themeForSubtopic(subtopicId);
 
   useEffect(() => {
     fetch(`/api/dragon-challenge?subtopicId=${encodeURIComponent(subtopicId)}`)
@@ -58,14 +62,15 @@ export default function DragonChallenge({ subtopicId, onDone }) {
     );
   }
 
-  if (!challenge) return <div className="loading">A wise old dragon stirs…</div>;
+  if (!challenge) return <div className="loading">{theme.guide.emoji} Something stirs…</div>;
 
   return (
     <div className="card" style={{ borderColor: "var(--primary)" }}>
-      <h1 style={{ marginTop: 0 }}>🐉 The Dragon's Challenge</h1>
+      <h1 style={{ marginTop: 0 }}>
+        {theme.guide.emoji} {theme.name}
+      </h1>
       <p style={{ fontSize: 14.5, lineHeight: 1.6 }}>
-        An old dragon blocks your path, guarding this subtopic. "Before I teach you anything," it rumbles, "let's see
-        what you already know." It poses a real exam question and waits.
+        {theme.guide.intro} It poses a real exam question and waits.
       </p>
       <div className="card" style={{ background: "var(--surface-2)", marginTop: 10 }}>
         <p style={{ fontWeight: 600, marginBottom: 4 }}>{challenge.questionText}</p>
@@ -80,11 +85,11 @@ export default function DragonChallenge({ subtopicId, onDone }) {
         onChange={(e) => setAnswerText(e.target.value)}
       />
       <button className="btn btn-primary" style={{ marginTop: 10 }} onClick={submit} disabled={submitting || !answerText.trim()}>
-        {submitting ? "Handing it to the dragon…" : "Attempt the question →"}
+        {submitting ? "Handing it over…" : "Attempt the question →"}
       </button>
       <p style={{ fontSize: 12, color: "var(--ink-soft)", marginTop: 8 }}>
-        The dragon reads slowly -- its verdict (score + feedback) will be ready after tonight. You don't have to wait
-        for it: submitting sends you straight on to learn this subtopic.
+        {theme.guide.emoji} reads slowly -- its verdict (score + feedback) will be ready after tonight. You don't have
+        to wait for it: submitting sends you straight on to learn this subtopic.
       </p>
     </div>
   );
