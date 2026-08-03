@@ -591,6 +591,26 @@ export const mastery = pgTable(
     // straight to a module deep inside an unstudied subtopic wouldn't be
     // "early access to a topic," it'd be skipping the topic entirely.
     unlockOverrideUntil: timestamp("unlock_override_until"),
+    // Bloom Knowledge Forest, Phase G1 (see lib/forest/growth.js) -- a
+    // ratcheted high-water mark over masteryScore, one of
+    // lib/forest/growth.js's GROWTH_STAGES ids. Cached/derived, not
+    // authoritative: always the max of its previous value and
+    // growthStageForScore(masteryScore) as of the last write, never
+    // decreases on its own. Default 'seed' matches a never-attempted row.
+    growthStage: text("growth_stage").notNull().default("seed"),
+    // SM-2-style ease factor (see lib/adaptive/srs.js's DEFAULT_EASE_FACTOR,
+    // reused not reinvented) driving lib/forest/decay.js's retention curve
+    // -- distinct from currentTier above (that's question difficulty;
+    // this is memory-decay speed). Bumped by lib/forest/decay.js's
+    // applyRevision() on each successful review, same growth direction as
+    // flashcards' own ease factor.
+    retentionEaseFactor: real("retention_ease_factor").notNull().default(2.5),
+    // { score: number (0-1), at: ISO timestamp } -- the point
+    // lib/forest/decay.js's retention() decays forward from. Snapshotted
+    // whenever masteryScore is freshly updated from a graded attempt.
+    // Empty object for a never-attempted row (decay.js treats a missing
+    // checkpoint as "nothing to decay yet," not zero retention).
+    lastRetentionCheckpoint: jsonb("last_retention_checkpoint").notNull().default({}),
   },
   (table) => ({
     pk: primaryKey({ columns: [table.userId, table.subtopicId] }),
