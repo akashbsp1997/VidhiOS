@@ -6,6 +6,7 @@ import LegacyLearnFlow from "../../../components/LegacyLearnFlow.jsx";
 import ModuleLearnFlow from "../../../components/ModuleLearnFlow.jsx";
 import SubtopicNotes from "../../../components/SubtopicNotes.jsx";
 import LockdownNotice from "../../../components/LockdownNotice.jsx";
+import DragonChallenge from "../../../components/DragonChallenge.jsx";
 
 async function safeFetchJson(url, options) {
   const res = await fetch(url, options);
@@ -40,8 +41,17 @@ export default function LearnPage({ params }) {
   const [error, setError] = useState(null);
   const [lockdown, setLockdown] = useState(null);
   const [upgrading, setUpgrading] = useState(false);
+  // The Dragon's Challenge (module flow only -- see components/
+  // DragonChallenge.jsx) gates entry into ModuleLearnFlow until this
+  // subtopic's one-time RPG intro question is submitted (not graded --
+  // grading is overnight, see app/api/dragon-challenge). Reset alongside
+  // everything else `decide()` resets, since this page instance persists
+  // across a subtopicId change rather than remounting (see the existing
+  // key={subtopicId} sub-components below).
+  const [dragonAcknowledged, setDragonAcknowledged] = useState(false);
 
   function decide(upgrade = false) {
+    setDragonAcknowledged(false);
     setError(null);
     setLockdown(null);
     if (!upgrade) setDispatch(null);
@@ -96,6 +106,10 @@ export default function LearnPage({ params }) {
         <SubtopicNotes key={`notes-${subtopicId}`} subtopicId={subtopicId} />
       </>
     );
+  }
+
+  if (!dragonAcknowledged) {
+    return <DragonChallenge key={subtopicId} subtopicId={subtopicId} onDone={() => setDragonAcknowledged(true)} />;
   }
 
   return (

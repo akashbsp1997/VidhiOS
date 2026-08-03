@@ -755,6 +755,45 @@ export const pvpAttacks = pgTable("pvp_attacks", {
 });
 
 /**
+ * Dragon's Challenge (lib/ai/generateDragonChallenge.js) -- a one-time RPG
+ * intro per (student, subtopic): before Module 1's Teach, a wise old dragon
+ * poses a real Mains-level question on the subtopic's fundamentals and
+ * sends the student to attempt it BEFORE any teaching happens (a diagnostic
+ * hook, not a gate on it -- see app/api/dragon-challenge/route.js). Grading
+ * follows this app's standing 2026-07-24 overnight-batch-grading
+ * convention (see app/api/cron/grade-daily-answers/route.js) -- score/
+ * feedback stay null until that runs, same as attempts/essayAttempts, and
+ * the student is never blocked on the wait: submitting is what unlocks the
+ * module sequence, not being graded.
+ */
+export const dragonChallenges = pgTable(
+  "dragon_challenges",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => authUsers.id),
+    subtopicId: text("subtopic_id")
+      .notNull()
+      .references(() => subtopics.id),
+    questionText: text("question_text").notNull(),
+    marks: integer("marks").notNull(),
+    // Set when grounded in a real Mains PYQ for this subtopic (preferred,
+    // same precedent as lesson_modules.pyqId); null when AI-generated
+    // because no suitable real PYQ existed.
+    pyqId: text("pyq_id").references(() => pyqs.id),
+    answerText: text("answer_text"),
+    submittedAt: timestamp("submitted_at"),
+    score: integer("score"), // 0-100 from AI grading; null while grading is pending/in flight
+    feedback: jsonb("feedback"), // { strengths: [], weaknesses: [], verdict: "" } -- same shape as attempts.feedback
+    gradedAt: timestamp("graded_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.userId, table.subtopicId] }),
+  })
+);
+
+/**
  * Daily Bounty (lib/gamification/bounties.js) -- one row per (student,
  * date, subtopic) the student's actual day-plan assigned as a "learn" day
  * topic. Four steps, each a nullable timestamp (null = not done yet):
