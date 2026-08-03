@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import ModelAnswerPanel from "./ModelAnswerPanel.jsx";
+import { creatureForModule } from "../lib/rpg/themes.js";
 
 // Every module Test is generated now (content-first, see the 2026-07-24
 // change) -- questionSource is always "model".
@@ -9,26 +10,18 @@ const SOURCE_LABEL = { model: "Model question" };
 
 // "Monster Battle" -- a purely cosmetic reskin of this module's real Test
 // (explicit request: "tested by a small adventure of defeating a sphinx or
-// a lion or a centaur"). Deliberately NOT a new question format or a new
-// grading path -- this app's answer grading moved to one predictable
-// nightly batch window on 2026-07-24 specifically to keep AI usage
-// predictable, and reworking that same night to also support instant
-// win/lose combat feedback would fight that decision. So "defeating" the
-// creature is the act of submitting a real attempt (same thing that
-// already unlocks the next module) -- the AI's actual verdict still
-// arrives the next morning, same as every other test in this app.
-const CREATURES = [
-  { name: "Sphinx", emoji: "🗿", verb: "answer its riddle" },
-  { name: "Lion", emoji: "🦁", verb: "stand your ground" },
-  { name: "Centaur", emoji: "🐎", verb: "match its challenge" },
-  { name: "Gorgon", emoji: "🐍", verb: "hold your nerve" },
-  { name: "Griffin", emoji: "🦅", verb: "prove your worth" },
-  { name: "Minotaur", emoji: "🐂", verb: "navigate the maze" },
-];
-
-function creatureForModule(moduleId) {
-  return CREATURES[Math.abs(Number(moduleId) || 0) % CREATURES.length];
-}
+// a lion or a centaur," later broadened to "be creative... sci-fi,
+// unicorns, hobbits, ironman, wizards, leprechauns"). The creature AND its
+// whole theme come from lib/rpg/themes.js, deterministic per subtopic (same
+// theme the subtopic's Dragon's Challenge uses) -- not re-rolled per
+// module or per visit. Deliberately NOT a new question format or grading
+// path -- this app's answer grading moved to one predictable nightly batch
+// window on 2026-07-24 specifically to keep AI usage predictable, and
+// reworking that same night to also support instant win/lose combat
+// feedback would fight that decision. So "defeating" the creature is the
+// act of submitting a real attempt (same thing that already unlocks the
+// next module) -- the AI's actual verdict still arrives the next morning,
+// same as every other test in this app.
 
 // Deliberately NOT PracticeSession -- that component's loadNext/"Next
 // question →" loop assumes an unbounded adaptive pool (real PYQs mixed
@@ -141,7 +134,7 @@ export default function ModuleTestPanel({ subtopicId, moduleId, moduleTitle, isL
     );
   if (!question) return null;
 
-  const creature = creatureForModule(moduleId);
+  const { creature } = creatureForModule(subtopicId, moduleId);
 
   return (
     <>
