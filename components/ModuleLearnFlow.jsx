@@ -9,6 +9,8 @@ import LootCrates from "./LootCrates.jsx";
 import EvidenceBoard from "./EvidenceBoard.jsx";
 import TimeSceneChallenge from "./TimeSceneChallenge.jsx";
 import Timeline from "./Timeline.jsx";
+import ComparisonDuel from "./ComparisonDuel.jsx";
+import NetworkExplorer from "./NetworkExplorer.jsx";
 import { isStageUnlocked } from "../lib/adaptive/unlocks.js";
 import { bulletLines } from "../lib/text/bullets.js";
 
@@ -473,6 +475,16 @@ export default function ModuleLearnFlow({ subtopicId, subjectDisplayName, subtop
               <button className="btn" onClick={() => setActiveMinigame("scene")}>
                 🌀 Step into the scene
               </button>
+              {moduleContent.comparisonData && (
+                <button className="btn" onClick={() => setActiveMinigame("comparison")}>
+                  ⚔️ Comparison Duel
+                </button>
+              )}
+              {moduleContent.networkData && (
+                <button className="btn" onClick={() => setActiveMinigame("network")}>
+                  🕸️ Explore the network
+                </button>
+              )}
             </div>
           )}
           {activeMinigame === "story" && <StoryMode subtopicId={subtopicId} moduleIndex={moduleIndex} onClose={() => setActiveMinigame(null)} />}
@@ -498,6 +510,22 @@ export default function ModuleLearnFlow({ subtopicId, subjectDisplayName, subtop
             </div>
           )}
           {activeMinigame === "scene" && <TimeSceneChallenge subtopicId={subtopicId} moduleIndex={moduleIndex} onClose={() => setActiveMinigame(null)} />}
+          {activeMinigame === "comparison" && moduleContent.comparisonData && (
+            <div className="card" style={{ marginTop: 10 }}>
+              <ComparisonDuel moduleId={currentModule.id} comparisonData={moduleContent.comparisonData} />
+              <button className="btn" style={{ marginTop: 10 }} onClick={() => setActiveMinigame(null)}>
+                Close
+              </button>
+            </div>
+          )}
+          {activeMinigame === "network" && moduleContent.networkData && (
+            <div className="card" style={{ marginTop: 10 }}>
+              <NetworkExplorer networkData={moduleContent.networkData} />
+              <button className="btn" style={{ marginTop: 10 }} onClick={() => setActiveMinigame(null)}>
+                Close
+              </button>
+            </div>
+          )}
         </div>
       )}
 

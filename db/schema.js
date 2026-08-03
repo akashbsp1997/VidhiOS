@@ -1075,6 +1075,22 @@ export const lessonModules = pgTable(
     // pattern observed in real coaching material (2026-08-03 analysis,
     // broadened 2026-08-03 beyond pure history per explicit request).
     timelineEvents: jsonb("timeline_events").notNull().default([]),
+    // Same "generated in the Teach call, only when genuinely applicable"
+    // convention as timelineEvents -- a real two-sided comparison (e.g.
+    // "India vs World"), rendered as the Comparison Duel minigame
+    // (components/ComparisonDuel.jsx). Null when this module has no real
+    // comparison to draw. Shape: { leftLabel, rightLabel, rows: [{
+    // attribute, left, right }] }.
+    comparisonData: jsonb("comparison_data"),
+    // Same convention -- a hub of genuinely related items (e.g. Mesolithic
+    // sites sharing a culture), rendered as the Network Explorer minigame
+    // (components/NetworkExplorer.jsx). Null when this module has nothing
+    // network-shaped. Shape: { hubLabel, nodes: [{ label, detail,
+    // connectionReason }] } -- a hub-and-spoke model (every node connects
+    // to the one hub), not a general multi-hub graph; matches every real
+    // example given for this feature and is far simpler to lay out than a
+    // general graph would be.
+    networkData: jsonb("network_data"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (table) => ({
