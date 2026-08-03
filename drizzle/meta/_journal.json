@@ -253,6 +253,13 @@
       "when": 1785735139414,
       "tag": "0035_ambiguous_stingray",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1785747451474,
+      "tag": "0036_majestic_blue_blade",
+      "breakpoints": true
     }
   ]
 }

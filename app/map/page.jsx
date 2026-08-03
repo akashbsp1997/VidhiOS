@@ -39,15 +39,55 @@ function Pin({ entry, isSelf }) {
   );
 }
 
+const STEP_DEF = [
+  { key: "teachDone", icon: "📖", label: "Teach" },
+  { key: "currentAffairsDone", icon: "📰", label: "Current affairs" },
+  { key: "notesDone", icon: "📝", label: "Notes" },
+  { key: "prelimsDone", icon: "❓", label: "Prelims" },
+];
+
+function BountyCard({ bounty }) {
+  const doneCount = STEP_DEF.filter((s) => bounty[s.key]).length;
+  return (
+    <div className="card" style={{ marginBottom: 8, borderTop: bounty.bloomed ? "3px solid var(--forest)" : undefined }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 6 }}>
+        <span style={{ fontSize: 13.5, fontWeight: 600 }}>
+          {bounty.bloomed ? "🌸" : "🎁"} {bounty.topicText}
+        </span>
+        <a className="btn" style={{ fontSize: 11, padding: "3px 9px" }} href={`/learn/${bounty.subtopicId}`}>
+          Open →
+        </a>
+      </div>
+      <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
+        {STEP_DEF.map((s) => (
+          <span key={s.key} style={{ fontSize: 12, opacity: bounty[s.key] ? 1 : 0.35 }} title={s.label}>
+            {bounty[s.key] ? "✅" : s.icon} {s.label}
+          </span>
+        ))}
+      </div>
+      {bounty.bloomed ? (
+        <p style={{ fontSize: 11.5, color: "var(--forest)", margin: "6px 0 0" }}>Bloomed today! 🌸</p>
+      ) : (
+        <p style={{ fontSize: 11.5, color: "var(--ink-soft)", margin: "6px 0 0" }}>{doneCount}/4 steps -- complete all four to bloom.</p>
+      )}
+    </div>
+  );
+}
+
 export default function MapPage() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
+  const [bounties, setBounties] = useState(null);
 
   useEffect(() => {
     fetch("/api/map")
       .then((r) => r.json())
       .then((d) => (d.error ? setError(d.error) : setData(d)))
       .catch((e) => setError(e.message));
+    fetch("/api/bounties")
+      .then((r) => r.json())
+      .then((d) => !d.error && setBounties(d.bounties))
+      .catch(() => {});
   }, []);
 
   return (
@@ -76,6 +116,19 @@ export default function MapPage() {
           {data.nearby.map((entry) => (
             <Pin key={entry.userId} entry={entry} isSelf={false} />
           ))}
+          {bounties?.some((b) => !b.bloomed) && (
+            <div
+              title="Today's bounty is waiting -- see the list below"
+              style={{
+                position: "absolute",
+                left: `${data.me.x * 92 + 4 + 3}%`,
+                top: `${data.me.y * 86 + 6 - 6}%`,
+                fontSize: 18,
+              }}
+            >
+              🎁
+            </div>
+          )}
         </div>
       )}
 
@@ -83,10 +136,21 @@ export default function MapPage() {
         <p className="lede">No one else is in your comparable-preparation band yet -- check back as more aspirants join.</p>
       )}
 
-      <p style={{ fontSize: 12, color: "var(--ink-soft)" }}>
+      <p style={{ fontSize: 12, color: "var(--ink-soft)", marginBottom: 20 }}>
         📗 NCERT Master · 📰 Current Affairs Master -- ornaments earned by real study milestones, shown here and in
         the Arena.
       </p>
+
+      <h2>🎁 Today's Bounty</h2>
+      <p className="lede">
+        Your real plan for today -- teach the content, its current affairs get mapped in automatically, add a note,
+        clear a Prelims question. All four blooms the topic and earns a seed bonus.
+      </p>
+      {bounties == null && <div className="loading">Loading today's bounty…</div>}
+      {bounties?.length === 0 && <p className="lede">No learn-day topics assigned for today (a test or revision day) -- no bounty to show.</p>}
+      {bounties?.map((b) => (
+        <BountyCard key={b.subtopicId} bounty={b} />
+      ))}
     </>
   );
 }

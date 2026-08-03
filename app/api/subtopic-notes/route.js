@@ -10,6 +10,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "../../../lib/db.js";
 import { mastery } from "../../../db/schema.js";
 import { getSessionUserId } from "../../../lib/supabase/server.js";
+import { markNotesDone } from "../../../lib/gamification/bounties.js";
 
 const VALID_STATUSES = ["not-started", "in-progress", "done"];
 
@@ -61,6 +62,11 @@ export async function POST(request) {
     } else {
       await db.insert(mastery).values({ userId, subtopicId, notes: nextNotes, selfStatus: nextStatus });
     }
+
+    // Daily Bounty (lib/gamification/bounties.js) -- a real, non-empty note
+    // is what counts as "notemaking done," not just any POST to this route
+    // (a bare selfStatus update shouldn't count).
+    if (nextNotes.trim()) await markNotesDone(userId, subtopicId);
 
     return NextResponse.json({ subtopicId, notes: nextNotes, selfStatus: nextStatus });
   } catch (err) {

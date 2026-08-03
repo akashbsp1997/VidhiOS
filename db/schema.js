@@ -755,6 +755,43 @@ export const pvpAttacks = pgTable("pvp_attacks", {
 });
 
 /**
+ * Daily Bounty (lib/gamification/bounties.js) -- one row per (student,
+ * date, subtopic) the student's actual day-plan assigned as a "learn" day
+ * topic. Four steps, each a nullable timestamp (null = not done yet):
+ * teachDoneAt, currentAffairsDoneAt, notesDoneAt, prelimsDoneAt. Once all
+ * four are set, bloomedAt is set exactly once and a seed bonus is granted
+ * -- the "topic blooms today" moment the map surfaces as a bounty. Scoped
+ * to the student's REAL plan for that day (lib/adaptive/planEngine.js),
+ * not just "any topic" -- this is deliberately about today's actual
+ * assigned content, not a generic daily checklist.
+ */
+export const dailyBounties = pgTable(
+  "daily_bounties",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => authUsers.id),
+    bountyDate: text("bounty_date").notNull(), // 'YYYY-MM-DD', UTC -- same convention as dailyMissionLog.missionDate
+    subtopicId: text("subtopic_id")
+      .notNull()
+      .references(() => subtopics.id),
+    teachDoneAt: timestamp("teach_done_at"),
+    // Auto-satisfied alongside teachDoneAt, whether or not the module
+    // actually had real current-affairs correlation to show -- a topic
+    // with no genuine current-affairs angle can't be blocked from
+    // blooming on something that doesn't exist for it. See
+    // lib/gamification/bounties.js's markTeachDone.
+    currentAffairsDoneAt: timestamp("current_affairs_done_at"),
+    notesDoneAt: timestamp("notes_done_at"),
+    prelimsDoneAt: timestamp("prelims_done_at"),
+    bloomedAt: timestamp("bloomed_at"),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.userId, table.bountyDate, table.subtopicId] }),
+  })
+);
+
+/**
  * Inventory of special-access items earned from completed daily missions
  * (see dailyMissionLog) -- one row per item, never merged into a stacked
  * count, so earnedAt/usedAt stay individually meaningful (e.g. "which of my
