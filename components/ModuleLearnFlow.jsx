@@ -8,6 +8,7 @@ import LevelMap from "./LevelMap.jsx";
 import LootCrates from "./LootCrates.jsx";
 import EvidenceBoard from "./EvidenceBoard.jsx";
 import TimeSceneChallenge from "./TimeSceneChallenge.jsx";
+import Timeline from "./Timeline.jsx";
 import { isStageUnlocked } from "../lib/adaptive/unlocks.js";
 import { bulletLines } from "../lib/text/bullets.js";
 
@@ -363,6 +364,11 @@ export default function ModuleLearnFlow({ subtopicId, subjectDisplayName, subtop
 
       <LevelMap subtopicId={subtopicId} modules={modules} moduleIndex={moduleIndex} onSelect={goToModule} />
       <p className="section-hint" style={{ marginBottom: 12 }}>
+        {currentModule?.articleRef && (
+          <>
+            <strong>{currentModule.articleRef}</strong> —{" "}
+          </>
+        )}
         {currentModule?.scopeNote}
         {currentModule?.pyqId && (
           <>
@@ -394,6 +400,7 @@ export default function ModuleLearnFlow({ subtopicId, subjectDisplayName, subtop
       {stage === "teach" && (
         <div className="card">
           <h2>Teach</h2>
+          <Timeline events={moduleContent.timelineEvents} />
           {teachPanels.length > 0 ? (
             <StageModules
               modules={teachPanels}

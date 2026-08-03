@@ -288,6 +288,13 @@
       "when": 1785778989711,
       "tag": "0040_mature_sugar_man",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1785782889699,
+      "tag": "0041_flippant_kulan_gath",
+      "breakpoints": true
     }
   ]
 }

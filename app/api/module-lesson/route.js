@@ -102,6 +102,7 @@ async function buildModulesSummary(moduleRows, moduleLocks) {
       orderIndex: m.orderIndex,
       title: m.title,
       scopeNote: m.scopeNote,
+      articleRef: m.articleRef || "",
       pyqId: m.pyqId ?? null,
       pyqYear: anchor?.year ?? null,
       pyqMarks: anchor?.marks ?? null,
@@ -231,7 +232,7 @@ export async function GET(request) {
 
       const inserted = await db
         .insert(lessonModules)
-        .values(planned.map((m, i) => ({ subtopicId, orderIndex: i, title: m.title, scopeNote: m.scopeNote, pyqId: m.pyqId })))
+        .values(planned.map((m, i) => ({ subtopicId, orderIndex: i, title: m.title, scopeNote: m.scopeNote, articleRef: m.articleRef ?? "", pyqId: m.pyqId })))
         .returning();
 
       // computeModuleLocks relies on array order matching orderIndex order --

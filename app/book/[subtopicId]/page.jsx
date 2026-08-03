@@ -2,6 +2,7 @@
 
 import { useEffect, useState, use } from "react";
 import { bulletLines } from "../../../lib/text/bullets.js";
+import Timeline from "../../../components/Timeline.jsx";
 
 // "The database as if contents in a book" -- static chapters (this
 // subtopic's Teach content, module by module, updated only when
@@ -55,6 +56,7 @@ export default function BookPage({ params }) {
             <p key={c.moduleId} style={{ fontSize: 13, margin: "3px 0" }}>
               <a href={`#chapter-${c.moduleId}`}>
                 {i + 1}. {c.title}
+                {c.articleRef && <span style={{ color: "var(--ink-soft)" }}> ({c.articleRef})</span>}
               </a>
             </p>
           ))}
@@ -66,6 +68,7 @@ export default function BookPage({ params }) {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 6 }}>
             <h2 style={{ margin: 0 }}>
               Chapter {i + 1}: {c.title}
+              {c.articleRef && <span style={{ fontSize: 13, fontWeight: 400, color: "var(--ink-soft)" }}> ({c.articleRef})</span>}
             </h2>
             {c.lastUpdated && (
               <span style={{ fontSize: 11, color: "var(--ink-soft)" }}>
@@ -73,6 +76,7 @@ export default function BookPage({ params }) {
               </span>
             )}
           </div>
+          <Timeline events={c.timelineEvents} />
           <ul style={{ paddingLeft: 20, fontSize: 13.5, lineHeight: 1.7 }}>
             {bulletLines(c.teachContent).map((line, j) => (
               <li key={j}>{line}</li>
