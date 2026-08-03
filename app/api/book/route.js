@@ -60,8 +60,10 @@ export async function GET(request) {
         moduleId: m.id,
         orderIndex: m.orderIndex,
         title: m.title,
+        articleRef: m.articleRef || "",
         teachContent: m.teachContent,
         keyPoints: m.keyPoints,
+        timelineEvents: m.timelineEvents,
         lastUpdated: m.generatedAt,
       }));
 

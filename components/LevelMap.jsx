@@ -61,7 +61,7 @@ export default function LevelMap({ subtopicId, modules, moduleIndex, onSelect })
                 type="button"
                 onClick={() => !m.locked && onSelect(i)}
                 disabled={m.locked}
-                title={m.locked ? lockReasonLabel(m.lockReason) : `${i + 1}. ${m.title}`}
+                title={m.locked ? lockReasonLabel(m.lockReason) : `${i + 1}. ${m.title}${m.articleRef ? ` (${m.articleRef})` : ""}`}
                 style={{
                   width: 52,
                   height: 52,

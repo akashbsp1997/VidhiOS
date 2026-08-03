@@ -1005,6 +1005,14 @@ export const lessonModules = pgTable(
       .references(() => subtopics.id),
     orderIndex: integer("order_index").notNull(), // 0-based sequence within the subtopic
     title: text("title").notNull(),
+    // Planning output (buildPlanSystem/buildPyqAnchoredPlanSystem) -- a
+    // short legal/structural reference like "Part III: Articles 12-35" or
+    // "Article 368", used as part of the displayed title spine wherever a
+    // module's title renders (module list, Book view, ModuleTestPanel),
+    // matching how real coaching material titles its own chapters. Empty
+    // string (never null) for subjects/modules with no article/part
+    // numbering to speak of (most non-Polity/non-legal subtopics).
+    articleRef: text("article_ref").notNull().default(""),
     scopeNote: text("scope_note").notNull().default(""), // planning output, fed back into every module-scoped prompt as narrowing context
     // Null = AI-invented fallback module (the subtopic had fewer than 2 real
     // PYQs to anchor to). Set = this module is built around answering this
@@ -1054,6 +1062,15 @@ export const lessonModules = pgTable(
     // generate-once-cache-forever convention as storyScenes. Shape:
     // { sceneText, question, options: string[4], correctIndex, explanation }.
     sceneChallenge: jsonb("scene_challenge"),
+    // Generated in the SAME Teach-phase AI call as teachContent/keyPoints
+    // (see buildModuleTeachSystem) -- a short { date, label } sequence
+    // extracted from this module's real content, ONLY when it's genuinely
+    // chronological (a historical/evolutionary module); empty array
+    // otherwise, never forced onto content that isn't a real sequence.
+    // Rendered as a timeline ABOVE the prose in Teach, matching the "visual
+    // timeline before the bullets" pattern observed in real coaching
+    // material (2026-08-03 analysis).
+    timelineEvents: jsonb("timeline_events").notNull().default([]),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (table) => ({
