@@ -3,7 +3,7 @@ export const maxDuration = 60;
 import { NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { db } from "../../../lib/db.js";
-import { subtopics, pyqs, sources, subjects, essayTopics, legalForums } from "../../../db/schema.js";
+import { subtopics, pyqs, sources, subjects, essayTopics } from "../../../db/schema.js";
 import { syllabusSeed } from "../../../db/seed/syllabus.js";
 import { pyqsSeed } from "../../../db/seed/pyqs.js";
 import { sourcesSeed } from "../../../db/seed/sources.js";
@@ -20,7 +20,6 @@ import { ncertSourcesSeed } from "../../../db/seed/ncert-sources.js";
 import { psirRecommendedBooksSeed } from "../../../db/seed/psir-recommended-books.js";
 import { govtUniversitySourcesSeed } from "../../../db/seed/govt-university-sources.js";
 import { csatQuantSyllabusSeed } from "../../../db/seed/csat-quant-syllabus.js";
-import { legalForumsSeed } from "../../../db/seed/legal-forums.js";
 
 // syllabusSeed/pyqsSeed (Law Optional) predate the subjectId column and
 // don't carry it on each row (it was backfilled once, directly in the DB,
@@ -132,37 +131,13 @@ export async function GET(request) {
     log.push(`FAIL seed:essayTopics -- ${err.message}`);
   }
 
-  try {
-    await db
-      .insert(legalForums)
-      .values(legalForumsSeed)
-      .onConflictDoUpdate({
-        target: legalForums.name,
-        set: {
-          forumType: sql`excluded.forum_type`,
-          level: sql`excluded.level`,
-          description: sql`excluded.description`,
-          pecuniaryMin: sql`excluded.pecuniary_min`,
-          pecuniaryMax: sql`excluded.pecuniary_max`,
-          subjectTags: sql`excluded.subject_tags`,
-          caseTypeTags: sql`excluded.case_type_tags`,
-          appealsTo: sql`excluded.appeals_to`,
-          notes: sql`excluded.notes`,
-        },
-      });
-    log.push(`OK  seed:legalForums (${legalForumsSeed.length})`);
-  } catch (err) {
-    hadError = true;
-    log.push(`FAIL seed:legalForums -- ${err.message}`);
-  }
-
   return NextResponse.json(
     {
       status: hadError ? "partial" : "ok",
       log,
       next: hadError
         ? "One or more steps failed -- read the FAIL lines above, that's the exact statement and error."
-        : "Go to your app's home page, then tap any subtopic to go through Teach -> Grasp -> Remember -> Test. For the Legal Case Manager, visit /legal.",
+        : "Go to your app's home page, then tap any subtopic to go through Teach -> Grasp -> Remember -> Test.",
     },
     { status: hadError ? 207 : 200 }
   );
