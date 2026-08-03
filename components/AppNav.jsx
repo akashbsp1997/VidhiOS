@@ -28,6 +28,7 @@ const NAV_GROUPS = [
       { href: "/flashcards", label: "Flashcards" },
       { href: "/arena", label: "Arena" },
       { href: "/map", label: "World Map" },
+      { href: "/shop", label: "Seed Shop" },
     ],
   },
   {
