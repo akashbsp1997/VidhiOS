@@ -69,7 +69,8 @@ export async function GET(request) {
           (table_name = 'player_state' and column_name = 'seeds') or
           (table_name = 'player_state' and column_name = 'defense_score') or
           (table_name = 'player_state' and column_name = 'shielded_until') or
-          (table_name = 'lesson_modules' and column_name = 'story_scenes')
+          (table_name = 'lesson_modules' and column_name = 'story_scenes') or
+          (table_name = 'lesson_modules' and column_name = 'scene_challenge')
         )
       order by table_name, column_name
     `);
