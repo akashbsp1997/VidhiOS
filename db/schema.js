@@ -792,6 +792,37 @@ export const dailyBounties = pgTable(
 );
 
 /**
+ * Alliances (lib/gamification/alliances.js) -- Kingshot-style guilds.
+ * `tag` is a short (2-5 char), unique, uppercase handle shown next to a
+ * member's label on the World Map and Arena, same convention as a real
+ * guild tag. A student belongs to at most one alliance at a time
+ * (allianceMembers.userId is the primary key, not composite) -- simpler
+ * than multi-alliance membership, and matches how Kingshot/most guild
+ * games actually work.
+ */
+export const alliances = pgTable("alliances", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  tag: text("tag").notNull().unique(),
+  description: text("description").notNull().default(""),
+  createdBy: uuid("created_by")
+    .notNull()
+    .references(() => authUsers.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const allianceMembers = pgTable("alliance_members", {
+  userId: uuid("user_id")
+    .primaryKey()
+    .references(() => authUsers.id),
+  allianceId: integer("alliance_id")
+    .notNull()
+    .references(() => alliances.id),
+  role: text("role").notNull().default("member"), // 'leader' | 'member' -- only the leader can rename/disband
+  joinedAt: timestamp("joined_at").notNull().defaultNow(),
+});
+
+/**
  * Inventory of special-access items earned from completed daily missions
  * (see dailyMissionLog) -- one row per item, never merged into a stacked
  * count, so earnedAt/usedAt stay individually meaningful (e.g. "which of my
