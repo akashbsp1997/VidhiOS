@@ -1,8 +1,11 @@
-// Embedded visual timeline ahead of the prose, for genuinely chronological
-// modules only (see lib/ai/generateModules.js's buildModuleTeachSystem --
-// timelineEvents is an empty array for the vast majority of modules that
-// aren't a real dated sequence). A single horizontally-scrollable row with
-// a connecting line, same visual language as components/LevelMap.jsx.
+// Embedded visual sequence ahead of the prose -- historical chronology
+// (real dates) OR a staged/phased process (e.g. India's three-stage
+// nuclear programme, a policy transmission mechanism) OR an ordered
+// achievement list, whichever this module's real content actually is (see
+// lib/ai/generateModules.js's buildModuleTeachSystem -- timelineEvents is
+// an empty array for the vast majority of modules that aren't any of
+// these). A single horizontally-scrollable row with a connecting line,
+// same visual language as components/LevelMap.jsx.
 export default function Timeline({ events }) {
   if (!events?.length) return null;
 
