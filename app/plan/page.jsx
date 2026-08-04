@@ -159,11 +159,14 @@ function SyncForOfflineButton() {
 export default function PlanPage() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
+  const [extraFromDay, setExtraFromDay] = useState(null);
   const [extraToDay, setExtraToDay] = useState(null);
 
   useEffect(() => {
-    const params = extraToDay != null ? `?toDay=${extraToDay}` : "";
-    fetch(`/api/plan${params}`)
+    const params = [];
+    if (extraFromDay != null) params.push(`fromDay=${extraFromDay}`);
+    if (extraToDay != null) params.push(`toDay=${extraToDay}`);
+    fetch(`/api/plan${params.length ? "?" + params.join("&") : ""}`)
       .then((r) => r.json())
       .then((d) => {
         if (d.error) setError(d.error);
@@ -173,7 +176,7 @@ export default function PlanPage() {
         }
       })
       .catch((e) => setError(e.message));
-  }, [extraToDay]);
+  }, [extraFromDay, extraToDay]);
 
   if (error === "onboarding_not_complete") {
     return (
@@ -267,9 +270,16 @@ export default function PlanPage() {
         ))}
       </div>
 
-      <button className="btn" onClick={() => setExtraToDay((data.days.at(-1)?.day ?? 0) + 14)}>
-        Load next 2 weeks →
-      </button>
+      <div style={{ display: "flex", gap: 8 }}>
+        {data.days[0]?.day > 0 && (
+          <button className="btn" onClick={() => setExtraFromDay(Math.max(0, (data.days[0]?.day ?? 0) - 14))}>
+            ← Load previous 2 weeks
+          </button>
+        )}
+        <button className="btn" onClick={() => setExtraToDay((data.days.at(-1)?.day ?? 0) + 14)}>
+          Load next 2 weeks →
+        </button>
+      </div>
     </>
   );
 }
