@@ -1,0 +1,1 @@
+ALTER TABLE "subtopics" ADD COLUMN "syllabus_order" integer DEFAULT 0 NOT NULL;

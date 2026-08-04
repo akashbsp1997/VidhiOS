@@ -70,6 +70,19 @@ export const subtopics = pgTable("subtopics", {
   section: text("section").notNull(), // e.g. "Constitutional and Administrative Law"
   topicText: text("topic_text").notNull(),
   pyqFrequency: integer("pyq_frequency").notNull().default(0), // denormalized count, refreshed by seed script
+  // This subtopic's position within its own seed file's array (0-based) --
+  // e.g. gs2-c1 "Indian Constitution -- historical underpinnings..." is
+  // position 0, gs2-c8 "Appointment to Constitutional posts" is position 7.
+  // Seed files are already hand-ordered to match the real official
+  // syllabus's own sequence, section by section -- a far more reliable
+  // "basics first" signal than lib/adaptive/unlocks.js's computeDifficultyScore
+  // heuristic, which can rank a broad, richly-sourced, high-PYQ foundational
+  // topic as MORE advanced than a thin, sparsely-sourced one purely because
+  // sparse data defaults to a neutral (not "basic") score. Primary sort key
+  // in orderSubtopicsWithinPaper/byScheduleOrder/byGsOrder now; difficultyScore
+  // is still the tiebreaker within a syllabusOrder tie (e.g. optionals whose
+  // seed arrays aren't meaningfully pre-ordered).
+  syllabusOrder: integer("syllabus_order").notNull().default(0),
 });
 
 /**
