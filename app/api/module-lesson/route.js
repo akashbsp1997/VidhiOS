@@ -232,7 +232,23 @@ async function loadOrCreateSubjectBookPlan(subtopicRow, subjectConfig) {
     .where(
       and(eq(subjectBookPlans.subjectId, subtopicRow.subjectId), eq(subjectBookPlans.paper, subtopicRow.paper), eq(subjectBookPlans.section, subtopicRow.section))
     );
-  return finalRow[0]?.planData?.[subtopicRow.id] ?? planData[subtopicRow.id];
+  const finalPlanData = finalRow[0]?.planData ?? planData;
+
+  // Cross-chapter prerequisite edges, backfilled from whichever plan
+  // actually won the race above -- see db/schema.js's
+  // subtopics.prerequisiteSubtopicIds, consumed by
+  // lib/adaptive/unlocks.js's computeCrossChapterLocks (gating) and
+  // lib/adaptive/planEngine.js's assignLearningDays (scheduling). One-time,
+  // only runs the first time this Subject's plan is generated -- a no-op
+  // read-only path on every later chapter-open once cached.
+  for (const chapter of chapters) {
+    const prereqs = finalPlanData[chapter.subtopicId]?.prerequisiteSubtopicIds ?? [];
+    if (prereqs.length) {
+      await db.update(subtopics).set({ prerequisiteSubtopicIds: prereqs }).where(eq(subtopics.id, chapter.subtopicId));
+    }
+  }
+
+  return finalPlanData[subtopicRow.id] ?? planData[subtopicRow.id];
 }
 
 export async function GET(request) {

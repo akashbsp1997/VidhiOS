@@ -83,6 +83,21 @@ export const subtopics = pgTable("subtopics", {
   // is still the tiebreaker within a syllabusOrder tie (e.g. optionals whose
   // seed arrays aren't meaningfully pre-ordered).
   syllabusOrder: integer("syllabus_order").notNull().default(0),
+  // Cross-chapter prerequisite edges -- ids of OTHER subtopics (within the
+  // same subjectId; cross-subject prerequisites aren't modeled) that must
+  // individually clear the mastery threshold before this one unlocks, ON
+  // TOP OF the existing sequential syllabusOrder-based chain
+  // (lib/adaptive/unlocks.js's computeSubtopicLocks). Populated as a
+  // byproduct of the Subject Book Plan's per-Subject planning call (see
+  // lib/ai/generateSubjectBookPlan.js's prerequisiteSubtopicIds output),
+  // written back the first time that Subject's plan is generated -- see
+  // app/api/module-lesson/route.js's loadOrCreateSubjectBookPlan. Empty
+  // array (the default, and the case for every subtopic whose Subject
+  // hasn't been planned yet) means "no dependency beyond the normal
+  // sequential chain." Can genuinely point EARLIER in syllabusOrder than
+  // this subtopic itself -- a compound/synthesis chapter can legitimately
+  // sit before its prerequisites in the raw syllabus list.
+  prerequisiteSubtopicIds: text("prerequisite_subtopic_ids").array().notNull().default([]),
 });
 
 /**

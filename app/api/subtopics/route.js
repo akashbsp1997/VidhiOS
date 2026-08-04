@@ -4,7 +4,7 @@ import { eq, sql } from "drizzle-orm";
 import { db } from "../../../lib/db.js";
 import { subtopics, mastery, sources, subjects, pyqs } from "../../../db/schema.js";
 import { getSessionUserId } from "../../../lib/supabase/server.js";
-import { computeDifficultyScore, orderSubtopicsWithinPaper, computeSubtopicLocks, computeSectionLocks } from "../../../lib/adaptive/unlocks.js";
+import { computeDifficultyScore, orderSubtopicsWithinPaper, computeSubtopicLocks, computeSectionLocks, computeCrossChapterLocks } from "../../../lib/adaptive/unlocks.js";
 import { isGatedCategory } from "../../../lib/adaptive/subjectUnlocks.js";
 import { loadUnlockedSubjectIds, checkLockdown } from "../../../lib/adaptive/subjectUnlockState.js";
 import { deriveForestState } from "../../../lib/forest/growth.js";
@@ -80,6 +80,7 @@ export async function GET(request) {
       topicText: s.topicText,
       pyqFrequency: s.pyqFrequency,
       syllabusOrder: s.syllabusOrder,
+      prerequisiteSubtopicIds: s.prerequisiteSubtopicIds,
       masteryScore: masteryBySubtopic[s.id]?.masteryScore ?? 0,
       currentTier: masteryBySubtopic[s.id]?.currentTier ?? 1,
       attemptsCount: masteryBySubtopic[s.id]?.attemptsCount ?? 0,
@@ -128,23 +129,30 @@ export async function GET(request) {
     for (const key of Object.keys(byPaperKey)) {
       const ordered = orderSubtopicsWithinPaper(byPaperKey[key]);
       const masteryScoreById = Object.fromEntries(ordered.map((s) => [s.id, s.masteryScore]));
+      const topicTextById = Object.fromEntries(ordered.map((s) => [s.id, s.topicText]));
       const locks = computeSubtopicLocks(ordered, masteryScoreById);
-      // Subject-level ("section") gate, composed the same way as
-      // lib/adaptive/lockState.js's loadPaperLockMap -- a subtopic is
-      // locked if EITHER the subtopic-chain rule or the section rule says
-      // so, kept as a distinct lockedBySection flag for UI messaging.
+      // Subject-level ("section") gate and cross-chapter prerequisite gate,
+      // composed the same way as lib/adaptive/lockState.js's
+      // loadPaperLockMap -- a subtopic is locked if ANY of the three rules
+      // say so, each kept as a distinct flag for UI messaging.
       const sectionLocks = computeSectionLocks(ordered, masteryScoreById);
+      const crossChapterLocks = computeCrossChapterLocks(ordered, masteryScoreById);
       result.push(
         ...ordered.map((s) => {
           const lock = locks.get(s.id);
           const sectionLock = sectionLocks.get(s.id);
+          const crossChapterLock = crossChapterLocks.get(s.id);
           return {
             ...s,
             ...lock,
-            locked: lock?.locked || sectionLock?.locked,
+            locked: lock?.locked || sectionLock?.locked || crossChapterLock?.locked,
             lockedBySection: Boolean(sectionLock?.locked),
             sectionLockInfo: sectionLock?.locked
               ? { requiredSection: sectionLock.requiredSection, requiredMasteryPct: sectionLock.requiredMasteryPct, currentMasteryPct: sectionLock.currentMasteryPct }
+              : null,
+            lockedByPrerequisite: Boolean(crossChapterLock?.locked),
+            prerequisiteLockInfo: crossChapterLock?.locked
+              ? { missingSubtopicIds: crossChapterLock.missingPrereqIds, missingSubtopicTexts: crossChapterLock.missingPrereqIds.map((id) => topicTextById[id] ?? id) }
               : null,
           };
         })
