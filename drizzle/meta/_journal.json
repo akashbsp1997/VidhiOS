@@ -309,6 +309,13 @@
       "when": 1785841769683,
       "tag": "0043_common_demogoblin",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1785848491207,
+      "tag": "0044_lowly_frightful_four",
+      "breakpoints": true
     }
   ]
 }
