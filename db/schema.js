@@ -1056,7 +1056,22 @@ export const lessonModules = pgTable(
     // lib/ai/generateModules.js's generateModulePlanFromPyqs.
     pyqId: text("pyq_id").references(() => pyqs.id),
     // Teach phase, null until first Teach visit to this module
+    // Derived, kept for backward compatibility -- computed by joining
+    // teachBeats' own content in order (see normalizeModuleTeachResult),
+    // never independently authored by the model anymore. Every other
+    // reader (Book view, notes export, flashcards, ModuleBlankdown, the
+    // PYQ-leak overlap check) still just reads this flat string, so it
+    // stays populated even though teachBeats is now the real source.
     teachContent: text("teach_content"),
+    // Structured Teach output -- one entry per beat in
+    // lib/ai/generateModules.js's buildModuleTeachSystem beat whitelist
+    // (origin, essential_nature, definition, responsibility, mechanics,
+    // significance), each { beat, content }, rendered as its own stepped
+    // panel (components/ModuleLearnFlow.jsx) instead of one long scrollable
+    // block. Empty array for every module generated before this existed --
+    // the frontend falls back to a single flat "Concept" panel over
+    // teachContent in that case, not a backfill/regeneration step.
+    teachBeats: jsonb("teach_beats").notNull().default([]),
     keyPoints: jsonb("key_points").notNull().default([]), // flat bullet strings, not structured keyProvisions/caseLaw objects
     // Distinct from keyPoints -- current-affairs correlation points,
     // explicitly framed for citing in an answer (see lib/ai/generateModules.js's
