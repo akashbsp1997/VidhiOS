@@ -239,6 +239,26 @@ export async function GET(request) {
         }
       }
       eligibleSubtopics = allSubtopics.filter((s) => subjectUnlockedForUser(s.subjectId) && !lockedIds.has(s.id));
+
+      // The adaptive lottery must never cold-pick a subtopic the student has
+      // never actually opened via Teach -- a mastery row only ever gets
+      // created on a first Teach/module visit (app/api/lesson/route.js,
+      // app/api/module-lesson/route.js), so its presence is exactly "has
+      // this subtopic been taught at all yet." Without this, a brand-new,
+      // never-taught subtopic was just as eligible as one the student had
+      // actually studied, so adaptive practice could -- and did -- quiz on
+      // material never covered. A `forcedSubtopicId` request (a student
+      // explicitly opening Practice for one specific subtopic, e.g. from its
+      // own page) is NOT filtered this way -- that's a deliberate choice by
+      // the student, not the auto-lottery.
+      eligibleSubtopics = eligibleSubtopics.filter((s) => masteryBySubtopic[s.id] != null);
+    }
+
+    if (!forcedSubtopicId && !eligibleSubtopics.length) {
+      return NextResponse.json(
+        { error: "Nothing to practice yet -- start today's Learn topics first, then adaptive practice opens up for them." },
+        { status: 409 }
+      );
     }
 
     const subtopicStates = eligibleSubtopics.map((s) => ({
