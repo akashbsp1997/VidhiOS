@@ -253,15 +253,20 @@ export default function PaperSubtopicsPage({ params }) {
       </div>
 
       {(() => {
-        // Grouped by real syllabus section (already tracked per subtopic --
-        // see db/schema.js's subtopics.section) into collapsible tree
-        // sections, instead of one long flat list. The fade-window/locked
-        // logic below is unchanged -- it's computed from `i`, this subtopic's
-        // position in the FULL visibleSubtopics sequence, not its position
-        // within its section, so basics-to-advanced ordering still holds
-        // exactly as before, just visually bucketed. Built as ONE raw
-        // grouped structure (not JSX) so both the List rows below and
-        // ForestCanopy render from the identical data.
+        // Grouped by real syllabus Subject (subtopics.section -- e.g.
+        // "Polity", "History") into collapsible tree sections, instead of
+        // one long flat list. The fade-window/locked logic below is
+        // unchanged -- it's computed from `i`, this subtopic's position in
+        // the FULL visibleSubtopics sequence, not its position within its
+        // section, so basics-to-advanced ordering still holds exactly as
+        // before, just visually bucketed. As of lib/adaptive/unlocks.js's
+        // computeSectionLocks, a Subject can now ALSO be genuinely locked
+        // (not just a display grouping) until the previous Subject's
+        // average mastery clears the threshold -- surfaced below via each
+        // subtopic's lockedBySection/sectionLockInfo (already merged into
+        // s.locked server-side, see app/api/subtopics/route.js). Built as
+        // ONE raw grouped structure (not JSX) so both the List rows below
+        // and ForestCanopy render from the identical data.
         const sectionOrder = [];
         const bySection = new Map();
         visibleSubtopics.forEach((s, i) => {
@@ -278,14 +283,16 @@ export default function PaperSubtopicsPage({ params }) {
           return <ForestCanopy sectionOrder={sectionOrder} bySection={bySection} onSelect={setSelectedPlant} />;
         }
 
-        return sectionOrder.map((section, idx) => (
-          <CollapsibleSection
-            title={section}
-            meta={`${bySection.get(section).length} topic${bySection.get(section).length === 1 ? "" : "s"}`}
-            defaultOpen={idx === 0}
-            key={section}
-          >
-            {bySection.get(section).map((s) => (
+        return sectionOrder.map((section, idx) => {
+          const members = bySection.get(section);
+          const sectionLocked = Boolean(members[0]?.lockedBySection);
+          const sectionLockInfo = members[0]?.sectionLockInfo;
+          const meta = sectionLocked
+            ? `🔒 Locked — reach ${sectionLockInfo.requiredMasteryPct}% avg mastery in ${sectionLockInfo.requiredSection} first (${sectionLockInfo.currentMasteryPct}%/${sectionLockInfo.requiredMasteryPct}%)`
+            : `${members.length} topic${members.length === 1 ? "" : "s"}`;
+          return (
+          <CollapsibleSection title={section} meta={meta} defaultOpen={idx === 0 && !sectionLocked} key={section}>
+            {members.map((s) => (
               <div className={`subtopic-row${s.locked ? " locked" : ""}`} style={s.opacity != null ? { opacity: s.opacity } : undefined} key={s.id}>
                 <span className="row-dots">
                   <span
@@ -303,9 +310,23 @@ export default function PaperSubtopicsPage({ params }) {
                   <div className="subtopic-meta">
                     {s.locked ? (
                       <span className="locked-pill">
-                        Locked — reach {s.requiredMasteryPct}% mastery on {s.requiredSubtopicText} first (
-                        {s.currentMasteryPct}%/{s.requiredMasteryPct}%)
-                        {unlockPasses.length > 0 && (
+                        {s.lockedBySection && !s.requiredSubtopicText ? (
+                          <>
+                            Locked — reach {s.sectionLockInfo.requiredMasteryPct}% avg mastery in {s.sectionLockInfo.requiredSection} first (
+                            {s.sectionLockInfo.currentMasteryPct}%/{s.sectionLockInfo.requiredMasteryPct}%)
+                          </>
+                        ) : (
+                          <>
+                            Locked — reach {s.requiredMasteryPct}% mastery on {s.requiredSubtopicText} first (
+                            {s.currentMasteryPct}%/{s.requiredMasteryPct}%)
+                          </>
+                        )}
+                        {/* An early-access pass only overrides this subtopic's own
+                            chain lock, never a section-level lock (see
+                            lib/adaptive/unlocks.js's computeSectionLocks) --
+                            hidden here when section lock is the actual blocker,
+                            since redeeming one wouldn't visibly change anything. */}
+                        {unlockPasses.length > 0 && !(s.lockedBySection && !s.requiredSubtopicText) && (
                           <button
                             className="btn"
                             style={{ marginLeft: 8, fontSize: 11, padding: "2px 8px" }}
@@ -338,7 +359,8 @@ export default function PaperSubtopicsPage({ params }) {
               </div>
             ))}
           </CollapsibleSection>
-        ));
+          );
+        });
       })()}
 
       {hiddenCount > 0 && (
