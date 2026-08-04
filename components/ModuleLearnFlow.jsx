@@ -19,6 +19,22 @@ import { modeById, DEFAULT_MODE_ID, loadSavedMode, saveMode } from "../lib/rpg/m
 
 const MAX_STAGE_FETCH_ITERATIONS = 5;
 
+// Matches lib/ai/generateModules.js's buildModuleTeachSystem beat
+// whitelist exactly -- one Teach panel per non-empty beat instead of one
+// long scrollable block, when a module has them (moduleContent.teachBeats).
+// Older already-generated modules have no teachBeats yet (this app has no
+// automatic backfill/regeneration step), so callers must fall back to the
+// legacy single "Concept" panel over the flat teachContent string when it's
+// empty -- see the hasBeats branch below.
+const BEAT_LABELS = {
+  origin: "Where this comes from",
+  essential_nature: "What kind of thing this is",
+  definition: "The precise definition",
+  responsibility: "Who's responsible",
+  mechanics: "How it works",
+  significance: "Why it matters",
+};
+
 async function safeFetchJson(url, options) {
   const res = await fetch(url, options);
   const raw = await res.text();
@@ -281,33 +297,43 @@ export default function ModuleLearnFlow({ subtopicId, subjectDisplayName, subtop
 
   // "compact" (Advanced mode) skips the full read-through entirely --
   // keyPoints only, for speed. "narrative" (Story mode) renders the same
-  // bulleted teachContent as flowing story-like paragraphs instead of a
+  // bulleted beat/teachContent as flowing story-like paragraphs instead of a
   // bare list -- the content is already written as a narrative arc (see
   // buildModuleTeachSystem), this just reads that way visually too.
+  function renderTeachBody(text) {
+    return mode.teachPrimary === "narrative" ? (
+      <div style={{ fontSize: 15, lineHeight: 1.9, fontStyle: "italic" }}>
+        {bulletLines(text).map((line, i) => (
+          <p key={i} style={{ margin: "0 0 10px" }}>
+            {line}
+          </p>
+        ))}
+      </div>
+    ) : (
+      <ul style={{ paddingLeft: 20, fontSize: 14.5, lineHeight: 1.7 }}>
+        {bulletLines(text).map((line, i) => (
+          <li key={i} style={{ marginBottom: 6 }}>
+            {line}
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
+  // One panel per non-empty beat (a module taught in 6 short, labeled
+  // stops instead of one 600-1200-word scroll) when this module has them;
+  // older modules generated before teachBeats existed fall back to the
+  // single flat "Concept" panel over teachContent, unchanged from before.
+  const hasBeats = Array.isArray(moduleContent.teachBeats) && moduleContent.teachBeats.some((b) => b?.content?.trim());
   const teachPanels = moduleContent.teachContent
     ? [
-        mode.teachPrimary !== "compact" && {
-          key: "concept",
-          label: "Concept",
-          node:
-            mode.teachPrimary === "narrative" ? (
-              <div style={{ fontSize: 15, lineHeight: 1.9, fontStyle: "italic" }}>
-                {bulletLines(moduleContent.teachContent).map((line, i) => (
-                  <p key={i} style={{ margin: "0 0 10px" }}>
-                    {line}
-                  </p>
-                ))}
-              </div>
-            ) : (
-              <ul style={{ paddingLeft: 20, fontSize: 14.5, lineHeight: 1.7 }}>
-                {bulletLines(moduleContent.teachContent).map((line, i) => (
-                  <li key={i} style={{ marginBottom: 6 }}>
-                    {line}
-                  </li>
-                ))}
-              </ul>
-            ),
-        },
+        ...(mode.teachPrimary === "compact"
+          ? []
+          : hasBeats
+          ? moduleContent.teachBeats
+              .filter((b) => b?.content?.trim())
+              .map((b) => ({ key: `beat-${b.beat}`, label: BEAT_LABELS[b.beat] ?? b.beat, node: renderTeachBody(b.content) }))
+          : [{ key: "concept", label: "Concept", node: renderTeachBody(moduleContent.teachContent) }]),
         moduleContent.keyPoints?.length > 0 && {
           key: "keypoints",
           label: "Key points",
