@@ -1110,21 +1110,22 @@ export const lessonModules = pgTable(
     // generate-once-cache-forever convention as storyScenes. Shape:
     // { sceneText, question, options: string[4], correctIndex, explanation }.
     sceneChallenge: jsonb("scene_challenge"),
-    // Courtroom Mode -- another OPTIONAL Remember-stage enrichment (see
-    // lib/ai/generateModules.js's generateModuleCourtroom), gated
-    // additionally (beyond the usual Remember-stage-unlocked check every
-    // other enrichment route already enforces) on this module's subtopic
-    // having at least one db/seed/cases.js casesSeed entry -- the existing
-    // signal tying a subtopic to real case law, reused rather than a new
-    // per-module AI classification (no such classification exists
-    // anywhere else in this app). Two labeled parties argue a real case,
-    // then a fixed verdict is pronounced -- pre-generated once, cached
-    // forever, same convention as storyScenes/sceneChallenge. Picking a
-    // side (components/CourtroomScene.jsx) is framing only -- both
-    // parties' arguments are always shown and the verdict never changes.
-    // Shape: { caseName, courtName, partyA: { label, arguments: string[] },
-    // partyB: { label, arguments: string[] }, verdict: { holding, reasoning } }.
-    courtroomScene: jsonb("courtroom_scene"),
+    // Roleplay Mode -- another OPTIONAL Remember-stage enrichment (see
+    // lib/ai/generateModules.js's generateModuleRoleplay), offered
+    // UNCONDITIONALLY on every module, same as storyScenes/sceneChallenge
+    // (an earlier version of this gated on db/seed/cases.js and forced a
+    // fixed courtroom framing -- replaced per explicit correction: the
+    // scene type itself is the model's own judgment call per module's real
+    // content, not a fixed shape). Two contrasting roles argue their real
+    // positions, then a resolution beat whose KIND also varies by scene
+    // (a verdict for a courtroom, an outcome for a negotiation, "what
+    // actually happened" for a historical dialogue, etc.) -- pre-generated
+    // once, cached forever. Picking a side (components/RoleplayScene.jsx)
+    // is framing only -- both roles' positions are always shown and the
+    // resolution never changes. Shape: { scenarioLabel, setting,
+    // roleA: { label, positions: string[] }, roleB: { label, positions: string[] },
+    // resolution: { label, text } }.
+    roleplayScene: jsonb("roleplay_scene"),
     // Generated in the SAME Teach-phase AI call as teachContent/keyPoints
     // (see buildModuleTeachSystem) -- a short { date, label } sequence
     // extracted from this module's real content, ONLY when it's a genuine

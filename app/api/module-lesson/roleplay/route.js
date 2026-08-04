@@ -1,21 +1,22 @@
-// app/api/module-lesson/courtroom/route.js
+// app/api/module-lesson/roleplay/route.js
 //
-// Courtroom Mode -- an optional, single self-contained AI call (same
+// Roleplay Mode -- an optional, single self-contained AI call (same
 // discipline as app/api/module-lesson/scene), generated once per module,
-// cached forever in lesson_modules.courtroomScene. Additionally gated
-// (beyond the usual Remember-stage-unlocked check every enrichment route
-// already enforces) on this module's subtopic having at least one real,
-// verified case in db/seed/cases.js -- the existing signal tying a
-// subtopic to real case law, reused rather than a new per-module AI
-// classification. Currently only Law Optional subtopics have casesSeed
-// entries, so Courtroom Mode is only reachable there for now.
+// cached forever in lesson_modules.roleplayScene. Offered UNCONDITIONALLY
+// on every module, same convention as Story Mode/Time-Scene Challenge --
+// the scene TYPE (courtroom, debate, negotiation, historical dialogue,
+// deliberation, ...) is the AI's own judgment call per module's real
+// content, not a fixed shape gated on any particular data existing. When
+// the subtopic happens to have a real case in db/seed/cases.js, it's
+// passed as OPTIONAL extra grounding for a courtroom-shaped scene
+// specifically -- never a requirement for this route to work.
 export const maxDuration = 60;
 
 import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { db } from "../../../../lib/db.js";
 import { subtopics, lessonModules, mastery } from "../../../../db/schema.js";
-import { generateModuleCourtroom } from "../../../../lib/ai/generateModules.js";
+import { generateModuleRoleplay } from "../../../../lib/ai/generateModules.js";
 import { casesSeed } from "../../../../db/seed/cases.js";
 import { getSessionUserId } from "../../../../lib/supabase/server.js";
 import { getSubjectConfig } from "../../../../lib/subjects/config.js";
@@ -48,12 +49,6 @@ export async function GET(request) {
       return NextResponse.json({ error: "locked", ...lockMap.get(subtopicId) }, { status: 403 });
     }
 
-    // First match by seed-array order -- a subtopic can have more than one
-    // tagged case (e.g. two cases sharing the same doctrine), this module
-    // dramatizes exactly one, deterministically, not a random pick each visit.
-    const anchor = casesSeed.find((c) => c.topics.includes(subtopicId));
-    if (!anchor) return NextResponse.json({ error: "no_case_law" }, { status: 409 });
-
     const moduleRows = await db
       .select()
       .from(lessonModules)
@@ -68,21 +63,23 @@ export async function GET(request) {
       return NextResponse.json({ error: "stage_locked", requiredStage: unlockedStage }, { status: 403 });
     }
 
-    if (moduleRow.courtroomScene) {
-      return NextResponse.json({ scene: moduleRow.courtroomScene, cached: true });
+    if (moduleRow.roleplayScene) {
+      return NextResponse.json({ scene: moduleRow.roleplayScene, cached: true });
     }
 
+    // First match by seed-array order, if any -- optional grounding only,
+    // the model decides on its own whether a courtroom framing actually fits.
+    const anchor = casesSeed.find((c) => c.topics.includes(subtopicId));
     const subjectConfig = getSubjectConfig(subtopicRow.subjectId);
-    const scene = await generateModuleCourtroom({
+    const scene = await generateModuleRoleplay({
       subtopicText: subtopicRow.topicText,
       moduleTitle: moduleRow.title,
       teachContent: moduleRow.teachContent,
-      caseName: anchor.case,
-      casePoint: anchor.point,
+      caseAnchor: anchor ? { case: anchor.case, point: anchor.point } : undefined,
       subjectConfig,
     });
-    const [saved] = await db.update(lessonModules).set({ courtroomScene: scene }).where(eq(lessonModules.id, moduleRow.id)).returning();
-    return NextResponse.json({ scene: saved.courtroomScene, cached: false });
+    const [saved] = await db.update(lessonModules).set({ roleplayScene: scene }).where(eq(lessonModules.id, moduleRow.id)).returning();
+    return NextResponse.json({ scene: saved.roleplayScene, cached: false });
   } catch (err) {
     console.error(err);
     return NextResponse.json({ error: err.message }, { status: 500 });

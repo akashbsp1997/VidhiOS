@@ -1,0 +1,1 @@
+ALTER TABLE "lesson_modules" DROP COLUMN "courtroom_scene";

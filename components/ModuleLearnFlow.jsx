@@ -8,7 +8,7 @@ import LevelMap from "./LevelMap.jsx";
 import LootCrates from "./LootCrates.jsx";
 import EvidenceBoard from "./EvidenceBoard.jsx";
 import TimeSceneChallenge from "./TimeSceneChallenge.jsx";
-import CourtroomScene from "./CourtroomScene.jsx";
+import RoleplayScene from "./RoleplayScene.jsx";
 import Timeline from "./Timeline.jsx";
 import ComparisonDuel from "./ComparisonDuel.jsx";
 import NetworkExplorer from "./NetworkExplorer.jsx";
@@ -578,15 +578,9 @@ export default function ModuleLearnFlow({ subtopicId, subjectDisplayName, subtop
               <button className="btn" onClick={() => setActiveMinigame("blankdown")}>
                 🔫 Rapidfire blankdown
               </button>
-              {/* Only offered when this module's subtopic has a real,
-                  verified case in db/seed/cases.js -- currently Law Optional
-                  only, see currentModule.hasCaseLaw (app/api/module-lesson/
-                  route.js's buildModulesSummary). */}
-              {currentModule.hasCaseLaw && (
-                <button className="btn" onClick={() => setActiveMinigame("courtroom")}>
-                  ⚖️ Enter the courtroom
-                </button>
-              )}
+              <button className="btn" onClick={() => setActiveMinigame("roleplay")}>
+                🎬 Roleplay it out
+              </button>
               {moduleContent.comparisonData && (
                 <button className="btn" onClick={() => setActiveMinigame("comparison")}>
                   ⚔️ Comparison Duel
@@ -622,7 +616,7 @@ export default function ModuleLearnFlow({ subtopicId, subjectDisplayName, subtop
             </div>
           )}
           {activeMinigame === "scene" && <TimeSceneChallenge subtopicId={subtopicId} moduleIndex={moduleIndex} onClose={() => setActiveMinigame(null)} />}
-          {activeMinigame === "courtroom" && <CourtroomScene subtopicId={subtopicId} moduleIndex={moduleIndex} onClose={() => setActiveMinigame(null)} />}
+          {activeMinigame === "roleplay" && <RoleplayScene subtopicId={subtopicId} moduleIndex={moduleIndex} onClose={() => setActiveMinigame(null)} />}
           {activeMinigame === "blankdown" && moduleContent.teachContent && (
             <div className="card" style={{ marginTop: 10 }}>
               <ModuleBlankdown key={currentModule.id} moduleId={currentModule.id} teachContent={moduleContent.teachContent} onDone={() => setActiveMinigame(null)} />

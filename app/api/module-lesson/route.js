@@ -107,12 +107,6 @@ async function buildModulesSummary(moduleRows, moduleLocks) {
       pyqId: m.pyqId ?? null,
       pyqYear: anchor?.year ?? null,
       pyqMarks: anchor?.marks ?? null,
-      // Whether Courtroom Mode (components/CourtroomScene.jsx,
-      // app/api/module-lesson/courtroom/route.js) is offered for this
-      // module -- computed here, cheaply, from the static casesSeed import,
-      // so the frontend never has to speculatively hit the courtroom route
-      // just to find out whether the button should render at all.
-      hasCaseLaw: casesSeed.some((cs) => cs.topics.includes(m.subtopicId)),
       locked: lock?.locked ?? false,
       lockReason: lock?.reason ?? null,
       // Same requiredMasteryPct/currentMasteryPct on every locked module in
