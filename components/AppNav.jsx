@@ -4,84 +4,36 @@ import { useState } from "react";
 import LogoutButton from "./LogoutButton.jsx";
 import OfflineStatusChip from "./OfflineStatusChip.jsx";
 
-// The former flat 15-link topbar, regrouped (per explicit request: "cluttered,"
-// "grouped under various tabs... open like a tree") -- Dashboard stays
-// standalone since it's the one link every session actually starts from.
-const NAV_GROUPS = [
-  {
-    label: "Study",
-    links: [
-      { href: "/plan", label: "Plan" },
-      { href: "/practice", label: "Practice" },
-      { href: "/guide", label: "Guide" },
-      { href: "/ncert-chapters", label: "NCERT Chapters" },
-      { href: "/current-affairs", label: "Current affairs" },
-      { href: "/newspaper", label: "Daily Newspaper" },
-      { href: "/quant", label: "Quant" },
-    ],
-  },
-  {
-    label: "Games",
-    links: [
-      { href: "/prelims", label: "Prelims Arcade" },
-      { href: "/answer-architect", label: "Answer Architect" },
-      { href: "/fill-blanks", label: "Fill the Blanks" },
-      { href: "/flashcards", label: "Flashcards" },
-      { href: "/arena", label: "Arena" },
-      { href: "/alliances", label: "Alliances" },
-      { href: "/map", label: "World Map" },
-      { href: "/shop", label: "Seed Shop" },
-    ],
-  },
-  {
-    label: "Exams",
-    links: [
-      { href: "/mock-tests", label: "Mock tests" },
-      { href: "/essay", label: "Essay" },
-      { href: "/interview", label: "Interview" },
-    ],
-  },
-  {
-    label: "Progress",
-    links: [
-      { href: "/readiness", label: "Readiness" },
-      { href: "/results", label: "Results" },
-    ],
-  },
+// Decluttered to exactly 6 flat links (per explicit request: "declutter the
+// real estate... don't need so many icons and information," "study and
+// game merge"). No more dropdown groups -- 6 items needs no grouping, and
+// study/game being one thing means there's no separate "Games" category
+// left to group. Everything that isn't one of these 6 (Plan, Guide, NCERT
+// Chapters, Readiness, Results, Quant, Prelims Arcade, Mock tests,
+// Interview, Fill the Blanks, Flashcards, Arena, Alliances, World Map,
+// Seed Shop) still exists and is still reachable -- "tucked away neatly"
+// under app/page.jsx's own "More" section (a single CollapsibleSection),
+// not deleted, just no longer primary nav.
+const NAV_LINKS = [
+  { href: "/", label: "Your Estate" },
+  { href: "/practice", label: "Practice" },
+  { href: "/answer-architect", label: "Answer writing" },
+  { href: "/essay", label: "Essay writing" },
+  { href: "/newspaper", label: "Newspaper" },
+  { href: "/current-affairs", label: "Current affairs" },
 ];
-
-// Each group is a native <details>/<summary> -- accessible and keyboard-
-// operable with zero extra open/close state, styled as a dropdown on
-// desktop (see app/globals.css's .nav-group-panel) and as a stacked
-// accordion inside the mobile drawer below -- same taxonomy, same markup,
-// just repositioned by CSS breakpoint so there's only one thing to maintain.
-function NavGroup({ group }) {
-  return (
-    <details className="nav-group">
-      <summary>{group.label}</summary>
-      <div className="nav-group-panel">
-        {group.links.map((l) => (
-          <a key={l.href} href={l.href}>
-            {l.label}
-          </a>
-        ))}
-      </div>
-    </details>
-  );
-}
 
 export default function AppNav() {
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   return (
     <div className="app-nav">
-      {/* Desktop: inline dropdowns -- hidden below the 769px breakpoint via CSS. */}
+      {/* Desktop: inline links -- hidden below the 769px breakpoint via CSS. */}
       <nav className="app-nav-desktop">
-        <a className="nav-link" href="/">
-          Dashboard
-        </a>
-        {NAV_GROUPS.map((g) => (
-          <NavGroup key={g.label} group={g} />
+        {NAV_LINKS.map((l) => (
+          <a key={l.href} className="nav-link" href={l.href}>
+            {l.label}
+          </a>
         ))}
         <OfflineStatusChip />
         <LogoutButton />
@@ -104,11 +56,10 @@ export default function AppNav() {
         <>
           <div className="app-nav-backdrop" onClick={() => setDrawerOpen(false)} />
           <div className="app-nav-drawer">
-            <a className="nav-link" href="/" onClick={() => setDrawerOpen(false)}>
-              Dashboard
-            </a>
-            {NAV_GROUPS.map((g) => (
-              <NavGroup key={g.label} group={g} />
+            {NAV_LINKS.map((l) => (
+              <a key={l.href} className="nav-link" href={l.href} onClick={() => setDrawerOpen(false)}>
+                {l.label}
+              </a>
             ))}
             <div style={{ marginTop: 12 }}>
               <LogoutButton />
