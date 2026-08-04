@@ -4,7 +4,7 @@ import { eq, sql } from "drizzle-orm";
 import { db } from "../../../lib/db.js";
 import { subtopics, mastery, sources, subjects, pyqs } from "../../../db/schema.js";
 import { getSessionUserId } from "../../../lib/supabase/server.js";
-import { computeDifficultyScore, orderSubtopicsWithinPaper, computeSubtopicLocks } from "../../../lib/adaptive/unlocks.js";
+import { computeDifficultyScore, orderSubtopicsWithinPaper, computeSubtopicLocks, computeSectionLocks } from "../../../lib/adaptive/unlocks.js";
 import { isGatedCategory } from "../../../lib/adaptive/subjectUnlocks.js";
 import { loadUnlockedSubjectIds, checkLockdown } from "../../../lib/adaptive/subjectUnlockState.js";
 import { deriveForestState } from "../../../lib/forest/growth.js";
@@ -129,7 +129,26 @@ export async function GET(request) {
       const ordered = orderSubtopicsWithinPaper(byPaperKey[key]);
       const masteryScoreById = Object.fromEntries(ordered.map((s) => [s.id, s.masteryScore]));
       const locks = computeSubtopicLocks(ordered, masteryScoreById);
-      result.push(...ordered.map((s) => ({ ...s, ...locks.get(s.id) })));
+      // Subject-level ("section") gate, composed the same way as
+      // lib/adaptive/lockState.js's loadPaperLockMap -- a subtopic is
+      // locked if EITHER the subtopic-chain rule or the section rule says
+      // so, kept as a distinct lockedBySection flag for UI messaging.
+      const sectionLocks = computeSectionLocks(ordered, masteryScoreById);
+      result.push(
+        ...ordered.map((s) => {
+          const lock = locks.get(s.id);
+          const sectionLock = sectionLocks.get(s.id);
+          return {
+            ...s,
+            ...lock,
+            locked: lock?.locked || sectionLock?.locked,
+            lockedBySection: Boolean(sectionLock?.locked),
+            sectionLockInfo: sectionLock?.locked
+              ? { requiredSection: sectionLock.requiredSection, requiredMasteryPct: sectionLock.requiredMasteryPct, currentMasteryPct: sectionLock.currentMasteryPct }
+              : null,
+          };
+        })
+      );
     }
     result.sort(
       (a, b) =>
