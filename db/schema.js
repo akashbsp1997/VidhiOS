@@ -1112,6 +1112,47 @@ export const lessonModules = pgTable(
 );
 
 /**
+ * One row per (subjectId, paper, section) -- the AI-authored, SUBJECT-WIDE
+ * (subtopics.section, e.g. "Polity") chapter plan that REPLACES per-chapter-
+ * isolated generateModulePlan/generateModulePlanFromPyqs calls as the
+ * source of what a chapter's (subtopics row) lesson_modules actually are --
+ * see lib/ai/generateSubjectBookPlan.js and app/api/module-lesson/route.js's
+ * plan-creation branch. Scoped to one Subject rather than a whole paper
+ * (which can run 20-40+ chapters) so a single AI call stays reliably sized;
+ * a Subject is already the real syllabus's own coherent 3-9-chapter
+ * cluster (see the comment on subtopics.section).
+ *
+ * Generated once, lazily, the first time any chapter in this
+ * (subjectId, paper, section) is opened with no existing plan row -- same
+ * "generate once, cache forever" convention as every other AI phase in this
+ * app; not per-user, since a syllabus plan is the same for everyone.
+ *
+ * planData is keyed by subtopicId so the route's per-chapter insert step can
+ * look up exactly its own chapter's module list without re-parsing the
+ * whole plan: `{ [subtopicId]: { modules: [{ title, scopeNote, articleRef,
+ * pyqId }], prerequisiteSubtopicIds: string[] } }`. `modules` entries are
+ * already in the exact shape lesson_modules expects (pyqId set only for
+ * PYQ-anchored chapters, same as today). `prerequisiteSubtopicIds` is a
+ * byproduct of this same call -- captured here, not yet acted on until a
+ * later part wires it into subtopics.prerequisiteSubtopicIds/scheduling.
+ */
+export const subjectBookPlans = pgTable(
+  "subject_book_plans",
+  {
+    subjectId: text("subject_id")
+      .notNull()
+      .references(() => subjects.id),
+    paper: integer("paper").notNull(),
+    section: text("section").notNull(),
+    planData: jsonb("plan_data").notNull().default({}),
+    generatedAt: timestamp("generated_at").notNull().defaultNow(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.subjectId, table.paper, table.section] }),
+  })
+);
+
+/**
  * One row per (user, 30-day window since plan start) -- the "anchor"
  * mastery percentage a window's trajectory target is computed from (see
  * lib/adaptive/pacing.js). Written once, lazily, the first time

@@ -14,10 +14,11 @@
 export const maxDuration = 60;
 
 import { NextResponse } from "next/server";
-import { and, eq, asc, sql, inArray } from "drizzle-orm";
+import { and, eq, asc, inArray } from "drizzle-orm";
 import { db } from "../../../lib/db.js";
-import { subtopics, sources, lessons, lessonModules, mastery, subjects, pyqs } from "../../../db/schema.js";
+import { subtopics, sources, lessons, lessonModules, mastery, subjects, pyqs, subjectBookPlans } from "../../../db/schema.js";
 import { generateModulePlan, generateModulePlanFromPyqs } from "../../../lib/ai/generateModules.js";
+import { generateSubjectBookPlan } from "../../../lib/ai/generateSubjectBookPlan.js";
 import { ensureModuleStagePhase } from "../../../lib/adaptive/moduleContentReady.js";
 import { casesSeed } from "../../../db/seed/cases.js";
 import { getSessionUserId } from "../../../lib/supabase/server.js";
@@ -138,6 +139,102 @@ function nextMissingPhase(row, requiredPhases, stage, force) {
   return null;
 }
 
+/**
+ * Lazily loads (or generates once, cached forever, shared across every
+ * student -- a syllabus plan is the same for everyone) the Subject-wide
+ * book plan covering `subtopicRow`'s own (subjectId, paper, section) --
+ * see db/schema.js's subjectBookPlans and lib/ai/generateSubjectBookPlan.js.
+ * The first student to open ANY chapter in a Subject pays for the whole
+ * Subject's plan once; every subsequent chapter (this student or anyone
+ * else) reads the cached row for free. Returns this SPECIFIC chapter's
+ * { modules, prerequisiteSubtopicIds } slice, never the whole plan.
+ */
+async function loadOrCreateSubjectBookPlan(subtopicRow, subjectConfig) {
+  const existing = await db
+    .select()
+    .from(subjectBookPlans)
+    .where(
+      and(eq(subjectBookPlans.subjectId, subtopicRow.subjectId), eq(subjectBookPlans.paper, subtopicRow.paper), eq(subjectBookPlans.section, subtopicRow.section))
+    );
+  if (existing[0]?.planData?.[subtopicRow.id]) return existing[0].planData[subtopicRow.id];
+
+  const siblingChapters = await db
+    .select()
+    .from(subtopics)
+    .where(and(eq(subtopics.subjectId, subtopicRow.subjectId), eq(subtopics.paper, subtopicRow.paper), eq(subtopics.section, subtopicRow.section)))
+    .orderBy(asc(subtopics.syllabusOrder));
+  const siblingIds = siblingChapters.map((c) => c.id);
+
+  // Same "fetch everything, group in JS" approach lib/adaptive/lockState.js
+  // already uses for pyqs.topics -- simpler and plenty fast at this table's
+  // real size than trying to push an array-overlap filter into SQL.
+  const allPyqRows = await db.select().from(pyqs);
+  const pyqsByChapter = {};
+  for (const q of allPyqRows) {
+    for (const t of q.topics) {
+      if (siblingIds.includes(t)) (pyqsByChapter[t] ??= []).push(q);
+    }
+  }
+  const sourceRows = await db.select().from(sources).where(inArray(sources.subtopicId, siblingIds));
+  const sourcesByChapter = {};
+  for (const row of sourceRows) (sourcesByChapter[row.subtopicId] ??= []).push(row);
+  const currentAffairsByChapter = Object.fromEntries(
+    await Promise.all(siblingChapters.map(async (c) => [c.id, await recentCurrentAffairsExcerpts(c.id, PLANNING_CURRENT_AFFAIRS_WINDOW)]))
+  );
+
+  const chapters = siblingChapters.map((c) => {
+    const allChapterPyqs = pyqsByChapter[c.id] ?? [];
+    const selected = selectPyqCandidates(allChapterPyqs);
+    const anchored = selected.length >= MIN_PYQS_FOR_ANCHORING;
+    return {
+      subtopicId: c.id,
+      topicText: c.topicText,
+      mode: anchored ? "pyq-anchored" : "free",
+      pyqCandidates: anchored ? selected : undefined,
+      referencePyqs: !anchored && allChapterPyqs.length ? allChapterPyqs : undefined,
+      sourceExcerpts: labeledSourceExcerptBlocks(sourcesByChapter[c.id] ?? []),
+      currentAffairsExcerpts: currentAffairsByChapter[c.id],
+      caseAnchors: casesSeed.filter((cs) => cs.topics.includes(c.id)).map((cs) => ({ case: cs.case, point: cs.point })),
+    };
+  });
+
+  const planData = await generateSubjectBookPlan({ subjectConfig, sectionLabel: subtopicRow.section, chapters });
+
+  // A free-decomposition chapter whose AI output was entirely unusable
+  // falls back to an isolated single-chapter call -- the same behavior this
+  // app had before the Subject-wide plan existed, so one bad chapter in a
+  // Subject never blocks the rest of it.
+  for (const chapter of chapters) {
+    if (planData[chapter.subtopicId].modules == null) {
+      const freeModules = await generateModulePlan({
+        subtopicText: chapter.topicText,
+        sourceExcerpts: chapter.sourceExcerpts,
+        currentAffairsExcerpts: chapter.currentAffairsExcerpts,
+        referencePyqs: chapter.referencePyqs,
+        caseAnchors: chapter.caseAnchors,
+        subjectConfig,
+      });
+      planData[chapter.subtopicId].modules = freeModules.map((m) => ({ ...m, pyqId: null }));
+    }
+  }
+
+  // Two concurrent first-openers of the same Subject can both reach here --
+  // onConflictDoNothing lets whichever insert wins stand, then every caller
+  // (including the "losing" one) re-reads the row so nobody acts on their
+  // own now-discarded plan.
+  await db
+    .insert(subjectBookPlans)
+    .values({ subjectId: subtopicRow.subjectId, paper: subtopicRow.paper, section: subtopicRow.section, planData })
+    .onConflictDoNothing({ target: [subjectBookPlans.subjectId, subjectBookPlans.paper, subjectBookPlans.section] });
+  const finalRow = await db
+    .select()
+    .from(subjectBookPlans)
+    .where(
+      and(eq(subjectBookPlans.subjectId, subtopicRow.subjectId), eq(subjectBookPlans.paper, subtopicRow.paper), eq(subjectBookPlans.section, subtopicRow.section))
+    );
+  return finalRow[0]?.planData?.[subtopicRow.id] ?? planData[subtopicRow.id];
+}
+
 export async function GET(request) {
   const userId = await getSessionUserId();
   if (!userId) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
@@ -200,35 +297,12 @@ export async function GET(request) {
         }
       }
 
-      const allPyqCandidates = await db.select().from(pyqs).where(sql`${subtopicId} = ANY(${pyqs.topics})`);
-      const pyqCandidates = selectPyqCandidates(allPyqCandidates);
-
-      // Both plan paths get the same grounding now (2026-07-24 "rewrite
-      // Teach" change) -- the PYQ-anchored path used to get PYQs only, and
-      // free-decomposition used to silently discard 0-1 existing real PYQs
-      // entirely instead of at least surfacing them as context.
-      const srcRows = await db.select().from(sources).where(eq(sources.subtopicId, subtopicId));
-      const sourceExcerpts = labeledSourceExcerptBlocks(srcRows);
-      const currentAffairsExcerpts = await recentCurrentAffairsExcerpts(subtopicId, PLANNING_CURRENT_AFFAIRS_WINDOW);
-
-      let planned;
-      if (pyqCandidates.length >= MIN_PYQS_FOR_ANCHORING) {
-        planned = await generateModulePlanFromPyqs({ subtopicText: subtopicRow.topicText, pyqCandidates, sourceExcerpts, currentAffairsExcerpts, subjectConfig });
-      } else {
-        const caseAnchors = casesSeed
-          .filter((c) => c.topics.includes(subtopicId))
-          .map((c) => ({ case: c.case, point: c.point }));
-
-        const freeModules = await generateModulePlan({
-          subtopicText: subtopicRow.topicText,
-          sourceExcerpts,
-          currentAffairsExcerpts,
-          referencePyqs: allPyqCandidates.length ? allPyqCandidates : undefined,
-          caseAnchors,
-          subjectConfig,
-        });
-        planned = freeModules.map((m) => ({ ...m, pyqId: null }));
-      }
+      // Sourced from this chapter's Subject-wide book plan (generated once,
+      // cached forever per (subjectId, paper, section) -- see
+      // lib/ai/generateSubjectBookPlan.js) instead of an isolated
+      // per-chapter call, so sibling chapters in the same Subject inform
+      // each other's module boundaries and cross-chapter prerequisites.
+      const { modules: planned } = await loadOrCreateSubjectBookPlan(subtopicRow, subjectConfig);
 
       const inserted = await db
         .insert(lessonModules)
