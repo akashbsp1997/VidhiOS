@@ -24,7 +24,11 @@ export default function OnboardingPage() {
   const [state, setState] = useState(null);
   const [error, setError] = useState(null);
   const [gsSelection, setGsSelection] = useState([]);
-  const [optionalSubjectId, setOptionalSubjectId] = useState("");
+  // Defaults to PSIR -- this app's most fully-built-out optional (the fixed
+  // first onboarding week is PSIR-based regardless of this pick, see
+  // db/seed/onboardingWeekPlans.js), not a hard requirement. Still fully
+  // changeable via the picker below.
+  const [optionalSubjectId, setOptionalSubjectId] = useState("political-science-optional");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
   // Mandatory placement quiz (db/seed/placementQuiz.js) comes first -- it
@@ -196,6 +200,10 @@ export default function OnboardingPage() {
 
       <div className="card">
         <h2>Optional subject</h2>
+        <p style={{ fontSize: 12, color: "var(--ink-soft)", marginTop: -4, marginBottom: 8 }}>
+          We default you to Political Science &amp; IR (PSIR) — this app supports it most deeply today. Change it
+          below if you already know your optional.
+        </p>
         <select
           value={optionalSubjectId}
           onChange={(e) => setOptionalSubjectId(e.target.value)}
@@ -208,6 +216,13 @@ export default function OnboardingPage() {
             </option>
           ))}
         </select>
+        {optionalSubjectId && optionalSubjectId !== "political-science-optional" && (
+          <p style={{ fontSize: 11.5, color: "var(--ink-soft)", marginTop: 8, marginBottom: 0 }}>
+            Note: your first 7 preloaded days still preview PSIR content for the optional-subject slots, since it's
+            what's fully built out today — your plan adapts to {state.optionalSubjects.find((s) => s.subjectId === optionalSubjectId)?.displayName ?? "your optional"} from
+            there.
+          </p>
+        )}
       </div>
 
       {submitError && <div className="error-box">{submitError}</div>}
