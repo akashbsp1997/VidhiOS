@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { themeForSubtopic } from "../lib/rpg/themes.js";
+import CharacterScene from "./CharacterScene.jsx";
 
 // "An apparition into a location of the real world... asked to identify
 // specifics like during which revolution or which part of the world/
@@ -51,7 +52,9 @@ export default function TimeSceneChallenge({ subtopicId, moduleIndex, onClose })
         </button>
       </div>
 
-      <p style={{ fontSize: 14.5, lineHeight: 1.6, fontStyle: "italic" }}>{scene.sceneText}</p>
+      <CharacterScene guideEmoji={theme.guide.emoji} guideLabel={theme.name} speaker="guide" bubbleKey="scene">
+        <span style={{ fontStyle: "italic" }}>{scene.sceneText}</span>
+      </CharacterScene>
 
       <p style={{ fontWeight: 600, marginTop: 10, marginBottom: 6 }}>{scene.question}</p>
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>

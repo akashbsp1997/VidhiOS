@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { themeForSubtopic } from "../lib/rpg/themes.js";
+import CharacterScene from "./CharacterScene.jsx";
 
 // The RPG hook shown once per (student, subtopic), before any teaching --
 // see app/api/dragon-challenge/route.js. Submitting (not being graded) is
@@ -66,13 +67,13 @@ export default function DragonChallenge({ subtopicId, onDone }) {
 
   return (
     <div className="card" style={{ borderColor: "var(--primary)" }}>
-      <h1 style={{ marginTop: 0 }}>
-        {theme.guide.emoji} {theme.name}
-      </h1>
-      <p style={{ fontSize: 14.5, lineHeight: 1.6 }}>
+      <h1 style={{ marginTop: 0 }}>{theme.name}</h1>
+
+      <CharacterScene guideEmoji={theme.guide.emoji} guideLabel={theme.name} speaker="guide" bubbleKey="intro">
         {theme.guide.intro} It poses a real exam question and waits.
-      </p>
-      <div className="card" style={{ background: "var(--surface-2)", marginTop: 10 }}>
+      </CharacterScene>
+
+      <div className="card" style={{ background: "var(--surface-2)", marginTop: 10, animation: "bubble-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)" }}>
         <p style={{ fontWeight: 600, marginBottom: 4 }}>{challenge.questionText}</p>
         <p style={{ fontSize: 12, color: "var(--ink-soft)", margin: 0 }}>{challenge.marks} marks</p>
       </div>
@@ -87,6 +88,13 @@ export default function DragonChallenge({ subtopicId, onDone }) {
       <button className="btn btn-primary" style={{ marginTop: 10 }} onClick={submit} disabled={submitting || !answerText.trim()}>
         {submitting ? "Handing it over…" : "Attempt the question →"}
       </button>
+
+      {answerText.trim() && !submitting && (
+        <CharacterScene guideEmoji={theme.guide.emoji} guideLabel={theme.name} userEmoji="🧑" speaker="user" bubbleKey="writing">
+          Writing my answer…
+        </CharacterScene>
+      )}
+
       <p style={{ fontSize: 12, color: "var(--ink-soft)", marginTop: 8 }}>
         {theme.guide.emoji} reads slowly -- its verdict (score + feedback) will be ready after tonight. You don't have
         to wait for it: submitting sends you straight on to learn this subtopic.
