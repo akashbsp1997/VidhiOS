@@ -1045,9 +1045,14 @@ export const lessonModules = pgTable(
     // Null = AI-invented fallback module (the subtopic had fewer than 2 real
     // PYQs to anchor to). Set = this module is built around answering this
     // exact real exam question -- its Teach/Grasp content is grounded in the
-    // question's real text, and its Test serves this PYQ directly (zero AI
-    // calls) instead of generating one. See app/api/module-lesson/route.js's
-    // plan phase for the selection/threshold logic and
+    // question's real text (never quoted verbatim -- see
+    // lib/text/overlapCheck.js's containsVerbatimQuestion, enforced in
+    // normalizeModuleTeachResult). Test is always freshly generated even for
+    // a PYQ-anchored module (the 2026-07-24 "content-first" change ended the
+    // earlier behavior of serving the anchor PYQ verbatim as Test) -- the
+    // anchor is used only to calibrate difficulty/style, per
+    // generateModuleTest. See app/api/module-lesson/route.js's plan phase
+    // for the selection/threshold logic and
     // lib/ai/generateModules.js's generateModulePlanFromPyqs.
     pyqId: text("pyq_id").references(() => pyqs.id),
     // Teach phase, null until first Teach visit to this module
