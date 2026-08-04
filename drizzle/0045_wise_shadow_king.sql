@@ -1,0 +1,1 @@
+ALTER TABLE "subtopics" ADD COLUMN "prerequisite_subtopic_ids" text[] DEFAULT '{}' NOT NULL;

@@ -310,7 +310,13 @@ export default function PaperSubtopicsPage({ params }) {
                   <div className="subtopic-meta">
                     {s.locked ? (
                       <span className="locked-pill">
-                        {s.lockedBySection && !s.requiredSubtopicText ? (
+                        {/* Priority for which reason to SHOW: prerequisite > section >
+                            chain -- underlying `locked` is already an OR of all three
+                            (see app/api/subtopics/route.js), this just picks the most
+                            specific real blocker to explain first. */}
+                        {s.lockedByPrerequisite ? (
+                          <>Locked — first learn {s.prerequisiteLockInfo.missingSubtopicTexts.join(", ")}</>
+                        ) : s.lockedBySection ? (
                           <>
                             Locked — reach {s.sectionLockInfo.requiredMasteryPct}% avg mastery in {s.sectionLockInfo.requiredSection} first (
                             {s.sectionLockInfo.currentMasteryPct}%/{s.sectionLockInfo.requiredMasteryPct}%)
@@ -322,11 +328,12 @@ export default function PaperSubtopicsPage({ params }) {
                           </>
                         )}
                         {/* An early-access pass only overrides this subtopic's own
-                            chain lock, never a section-level lock (see
-                            lib/adaptive/unlocks.js's computeSectionLocks) --
-                            hidden here when section lock is the actual blocker,
-                            since redeeming one wouldn't visibly change anything. */}
-                        {unlockPasses.length > 0 && !(s.lockedBySection && !s.requiredSubtopicText) && (
+                            chain lock, never a section-level or prerequisite lock (see
+                            lib/adaptive/unlocks.js's computeSectionLocks/
+                            computeCrossChapterLocks) -- hidden here unless the chain
+                            lock is the actual (sole) blocker, since redeeming one
+                            wouldn't visibly change anything otherwise. */}
+                        {unlockPasses.length > 0 && !s.lockedBySection && !s.lockedByPrerequisite && s.requiredSubtopicText && (
                           <button
                             className="btn"
                             style={{ marginLeft: 8, fontSize: 11, padding: "2px 8px" }}

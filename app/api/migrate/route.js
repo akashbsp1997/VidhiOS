@@ -75,7 +75,8 @@ export async function GET(request) {
           (table_name = 'lesson_modules' and column_name = 'timeline_events') or
           (table_name = 'lesson_modules' and column_name = 'comparison_data') or
           (table_name = 'lesson_modules' and column_name = 'network_data') or
-          (table_name = 'subtopics' and column_name = 'syllabus_order')
+          (table_name = 'subtopics' and column_name = 'syllabus_order') or
+          (table_name = 'subtopics' and column_name = 'prerequisite_subtopic_ids')
         )
       order by table_name, column_name
     `);
