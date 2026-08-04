@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { isOptionalTile, isCompulsoryLanguageTile } from "../lib/subjects/papers.js";
 import { dateForDayNumber } from "../lib/adaptive/planEngine.js";
+import CollapsibleSection from "../components/CollapsibleSection.jsx";
 
 // Home is deliberately minimal (explicit request: "show only this day's
 // plan, this week's timeline, [and a] dashboard showing percentage of
@@ -308,6 +309,37 @@ export default function Home() {
           />
         </div>
       </div>
+
+      {/* Everything that isn't one of AppNav.jsx's 6 primary tabs, tucked
+          away here instead of the topbar (per explicit request: "declutter
+          the real estate," "tucked away neatly") -- nothing deleted, just
+          not primary nav. Collapsed by default, same CollapsibleSection
+          convention as the readiness groups above. */}
+      <CollapsibleSection title="More" meta="Plan, readiness, quant, games, and more">
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          {[
+            { href: "/plan", label: "Plan" },
+            { href: "/readiness", label: "Readiness" },
+            { href: "/results", label: "Results" },
+            { href: "/guide", label: "Guide" },
+            { href: "/ncert-chapters", label: "NCERT Chapters" },
+            { href: "/quant", label: "Quant" },
+            { href: "/prelims", label: "Prelims Arcade" },
+            { href: "/mock-tests", label: "Mock tests" },
+            { href: "/interview", label: "Interview" },
+            { href: "/fill-blanks", label: "Fill the Blanks" },
+            { href: "/flashcards", label: "Flashcards" },
+            { href: "/arena", label: "Arena" },
+            { href: "/alliances", label: "Alliances" },
+            { href: "/map", label: "World Map" },
+            { href: "/shop", label: "Seed Shop" },
+          ].map((l) => (
+            <a key={l.href} className="btn" href={l.href}>
+              {l.label}
+            </a>
+          ))}
+        </div>
+      </CollapsibleSection>
     </>
   );
 }

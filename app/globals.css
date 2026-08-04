@@ -82,42 +82,6 @@ header.topbar .inner { max-width: 880px; margin: 0 auto; display: flex; align-it
 .nav-link { color: var(--brass-light); text-decoration: none; opacity: 0.9; font-size: 13.5px; font-weight: 700; padding: 8px 10px; border-radius: 8px; transition: background 0.15s ease, opacity 0.15s ease; }
 .nav-link:hover { opacity: 1; background: rgba(255, 255, 255, 0.1); }
 
-.nav-group { position: relative; }
-.nav-group > summary {
-  list-style: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--brass-light);
-  font-size: 13.5px;
-  font-weight: 700;
-  padding: 8px 10px;
-  border-radius: 8px;
-  user-select: none;
-  transition: background 0.15s ease;
-}
-.nav-group > summary::-webkit-details-marker { display: none; }
-.nav-group > summary::after { content: "▾"; font-size: 10px; transition: transform 0.2s ease; }
-.nav-group[open] > summary::after { transform: rotate(180deg); }
-.nav-group > summary:hover { background: rgba(255, 255, 255, 0.1); }
-.nav-group-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  background: var(--ivory-3);
-  border: 1px solid var(--rule);
-  border-radius: 12px;
-  padding: 8px;
-  box-shadow: var(--shadow);
-  min-width: 180px;
-  animation: tree-node-open 0.18s ease;
-}
-.nav-group-panel a { color: var(--ink); text-decoration: none; font-size: 13.5px; padding: 8px 10px; border-radius: 8px; }
-.nav-group-panel a:hover { background: var(--ivory-2); }
-@media (min-width: 769px) {
-  .nav-group-panel { position: absolute; top: calc(100% + 6px); left: 0; z-index: 40; }
-}
 
 .app-nav-mobile-toggle {
   display: inline-flex;
@@ -156,8 +120,6 @@ header.topbar .inner { max-width: 880px; margin: 0 auto; display: flex; align-it
 }
 .app-nav-drawer .nav-link { color: var(--ink); }
 .app-nav-drawer .nav-link:hover { background: var(--ivory-2); }
-.app-nav-drawer .nav-group > summary { color: var(--ink); background: var(--ivory-2); margin-bottom: 2px; }
-.app-nav-drawer .nav-group-panel { box-shadow: none; border: none; background: transparent; padding: 2px 0 6px 14px; min-width: 0; }
 
 h1 { font-family: var(--font-display); font-weight: 800; font-size: 26px; margin: 0 0 4px; }
 h2 { font-family: var(--font-display); font-weight: 800; font-size: 19px; margin: 0 0 10px; }
