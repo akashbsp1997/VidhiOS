@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { themeForSubtopic } from "../lib/rpg/themes.js";
+import CharacterScene from "./CharacterScene.jsx";
 
 // Interactive Story Mode (explicit request: "the user is part of the story
 // or plays a character, and that way learns the chapter") -- lazily fetched
@@ -45,6 +47,7 @@ export default function StoryMode({ subtopicId, moduleIndex, onClose }) {
 
   const scene = scenes[sceneIndex];
   const isLast = sceneIndex === scenes.length - 1;
+  const theme = themeForSubtopic(subtopicId);
 
   return (
     <div className="card" style={{ marginTop: 10, borderColor: "var(--primary)", animation: "app-nav-drawer-in-up 0.2s ease" }}>
@@ -57,7 +60,9 @@ export default function StoryMode({ subtopicId, moduleIndex, onClose }) {
         </button>
       </div>
 
-      <p style={{ fontSize: 14.5, lineHeight: 1.6 }}>{scene.sceneText}</p>
+      <CharacterScene guideEmoji={theme.guide.emoji} guideLabel={theme.name} speaker="guide" bubbleKey={`scene-${sceneIndex}`}>
+        {scene.sceneText}
+      </CharacterScene>
 
       {!pickedReaction ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 10 }}>
@@ -68,9 +73,9 @@ export default function StoryMode({ subtopicId, moduleIndex, onClose }) {
           ))}
         </div>
       ) : (
-        <div className="tint-gold" style={{ borderRadius: "var(--radius)", padding: "10px 12px", marginTop: 10, fontSize: 13.5 }}>
+        <CharacterScene guideEmoji={theme.guide.emoji} guideLabel={theme.name} speaker="user" bubbleKey={`reaction-${sceneIndex}`}>
           {pickedReaction}
-        </div>
+        </CharacterScene>
       )}
 
       {pickedReaction && (

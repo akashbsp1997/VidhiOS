@@ -415,6 +415,36 @@ details.tree-node > .tree-node-body {
 }
 .value-pop { display: inline-block; animation: value-pop 0.5s ease; }
 
+/* CharacterScene (components/CharacterScene.jsx) -- the RPG guide (dragon/
+   AI/unicorn/etc, see lib/rpg/themes.js) and a "you" avatar, each idly
+   alive via a continuous bob rather than sitting as static emoji, with
+   dialogue delivered as a speech bubble that pops in fresh per line
+   instead of a static paragraph block. This app has no video/illustration
+   generation, so this -- not an actual drawn/animated character -- is the
+   real ceiling of "animated dragon and human" achievable here. */
+@keyframes character-bob {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-7px) rotate(-3deg); }
+}
+.character-bob { display: inline-block; animation: character-bob 2.4s ease-in-out infinite; }
+@keyframes bubble-pop {
+  from { opacity: 0; transform: scale(0.85) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+.speech-bubble {
+  position: relative;
+  background: var(--surface);
+  border: 2px solid var(--rule);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  font-size: 13.5;
+  flex: 1;
+  min-width: 0;
+  animation: bubble-pop 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: var(--shadow);
+}
+.speech-bubble.speaker-user { border-color: var(--primary); background: var(--surface-2); }
+
 /* Mobile-responsive sweep (2026-07-26, per explicit request -- there were
    previously NO breakpoints in this file at all outside @media print).
    640px covers a phone in portrait; a few rules also step at 768px (tablet/

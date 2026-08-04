@@ -21,7 +21,7 @@
 //     alone -- static assets are already served with long-lived
 //     Cache-Control by Next itself, and writes are handled client-side by
 //     lib/offline/offlineFetch.js's queue, never by this service worker.
-const CACHE_VERSION = "v1";
+const CACHE_VERSION = "v2";
 const SHELL_CACHE = `vidhios-shell-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `vidhios-runtime-${CACHE_VERSION}`;
 const OFFLINE_URL = "/offline.html";
@@ -64,8 +64,20 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+// Never cache these -- lazily-generated, optional, one-shot enrichment
+// (Story Mode, Time-Scene Challenge) that happens to share the
+// "/api/module-lesson" prefix with the real allowlisted core-loop route,
+// but has no business being served stale offline: each is generated once,
+// cached forever in its own DB row, and should always hit the network
+// fresh. Found live (2026-08-04): the plain prefix match below was sweeping
+// these in too, and something about caching their request/response was
+// throwing "The string did not match the expected pattern." in Safari.
+const API_GET_DENYLIST_EXACT = ["/api/module-lesson/story", "/api/module-lesson/scene"];
+
 function isAllowlistedApiGet(request, url) {
-  return request.method === "GET" && ALLOWLISTED_API_PREFIXES.some((prefix) => url.pathname.startsWith(prefix));
+  if (request.method !== "GET") return false;
+  if (API_GET_DENYLIST_EXACT.includes(url.pathname)) return false;
+  return ALLOWLISTED_API_PREFIXES.some((prefix) => url.pathname.startsWith(prefix));
 }
 
 // A cache-miss offline API response still needs to be a real Response, not
@@ -81,19 +93,31 @@ function offlineApiFallback() {
 }
 
 async function networkFirst(request, cacheName, fallbackResponse) {
+  let response;
   try {
-    const response = await fetch(request);
-    if (response && response.ok) {
-      const cache = await caches.open(cacheName);
-      cache.put(request, response.clone());
-    }
-    return response;
+    response = await fetch(request);
   } catch (err) {
     const cached = await caches.match(request);
     if (cached) return cached;
     if (fallbackResponse) return fallbackResponse();
     throw err;
   }
+  // Caching is best-effort and must NEVER be able to turn a successful
+  // network response into a failure -- some browsers (Safari's Cache API
+  // in particular) can throw on caching a request/response shape they
+  // don't like, and that used to fall into the same catch as a real
+  // network failure above, silently swapping a real answer for the
+  // offline fallback. Separated so a caching hiccup is invisible to the
+  // caller: the real response still goes out either way.
+  if (response && response.ok) {
+    try {
+      const cache = await caches.open(cacheName);
+      await cache.put(request, response.clone());
+    } catch (err) {
+      console.error("sw.js: caching response failed (response still served):", err.message);
+    }
+  }
+  return response;
 }
 
 self.addEventListener("fetch", (event) => {
