@@ -1080,6 +1080,22 @@ export const lessonModules = pgTable(
     // item genuinely connects to this module -- never forced.
     currentAffairsLink: jsonb("current_affairs_link").notNull().default([]),
     generatedAt: timestamp("generated_at"),
+    // Officer Roleplay Teach -- the MANDATORY, sole Teach-stage presentation
+    // (see lib/ai/generateModules.js's generateModuleOfficerRoleplay,
+    // components/OfficerRoleplayTeach.jsx): the student plays an
+    // administrative officer of a suitable rank handling a real issue
+    // dramatizing this module's content, working through it via 6 scenes
+    // (one per teachBeats entry) each tagged with one of 5 real phases of
+    // an officer's workflow (formalize sources / extract information /
+    // analyze solution / strategize implementation / verify compliance).
+    // Generated right after teachContent/teachBeats (same "teach" stage,
+    // a separate lazy AI phase -- see app/api/module-lesson/route.js's
+    // STAGE_REQUIRES), reusing teachBeats as its only factual basis, not a
+    // second round of fact-finding. Null until that phase runs; unlike
+    // storyScenes/roleplayScene (still-optional Remember-stage
+    // enrichments), Teach is not considered ready without this. Shape:
+    // { officerRank, issueBrief, scenes: [{ beat, officerPhase, narration }] }.
+    officerScenes: jsonb("officer_scenes"),
     // Practice phase -- covers Grasp (examples/exercises/mnemonic), null
     // until first Grasp visit to this module
     examples: jsonb("examples").notNull().default([]),

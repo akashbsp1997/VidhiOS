@@ -123,9 +123,22 @@ async function buildModulesSummary(moduleRows, moduleLocks) {
 // Grasp is satisfied the instant the practice phase completes; Remember
 // additionally needs the image phase -- same three-phase asymmetry as
 // /api/lesson's STAGE_REQUIRES (Grasp doesn't need the diagram, Remember
-// does).
+// does). "officer" AND "image" are now REQUIRED for teach itself -- Officer
+// Roleplay Teach (components/OfficerRoleplayTeach.jsx) is the sole
+// Teach-stage view, not an optional enrichment, and its "Your Post"
+// briefing panel shows this module's one shared illustration (moved
+// earlier from Remember-only, since it's now part of Teach's own
+// presentation, not just a Remember-stage aid) -- see
+// lib/adaptive/moduleContentReady.js's "image" phase, which already
+// prefers an officer-scene-themed prompt over the plain concept diagram
+// once officerScenes exists. Not listed under grasp/remember beyond what
+// they already needed: those stages don't render the officer view
+// themselves, and a student can't reach them without having already
+// passed through teach (which already forces officer+image to exist) --
+// revisiting the Teach tab specifically is what self-heals an
+// already-taught-but-pre-this-feature module missing either field.
 const STAGE_REQUIRES = {
-  teach: ["teach"],
+  teach: ["teach", "officer", "image"],
   grasp: ["teach", "practice"],
   remember: ["teach", "practice", "image"],
 };
@@ -133,6 +146,7 @@ const STAGE_REQUIRES = {
 function nextMissingPhase(row, requiredPhases, stage, force) {
   for (const phase of requiredPhases) {
     if (phase === "teach" && (!row?.generatedAt || (force && stage === "teach"))) return "teach";
+    if (phase === "officer" && !row?.officerScenes) return "officer";
     if (phase === "practice" && (!row?.practiceGeneratedAt || (force && stage === "grasp"))) return "practice";
     if (phase === "image" && (!row?.visualImageDataUri || (force && stage === "remember"))) return "image";
   }
@@ -395,7 +409,26 @@ export async function GET(request) {
         unlockedStage,
         ...saved,
         ready: false,
-        nextPhase: "practice",
+        nextPhase: "officer",
+      });
+    }
+
+    if (phase === "officer") {
+      // Always followed by "image" (STAGE_REQUIRES.teach's own last entry
+      // -- teach's briefing panel needs this module's one shared
+      // illustration too now, see moduleContentReady.js's "image" phase
+      // preferring an officer-scene-themed prompt once this exists).
+      const saved = await ensureModuleStagePhase(row, subtopicRow, subjectConfig, "officer");
+      return NextResponse.json({
+        subtopicId,
+        subtopicText: subtopicRow.topicText,
+        subjectDisplayName,
+        modules: modulesSummary,
+        moduleIndex,
+        unlockedStage,
+        ...saved,
+        ready: false,
+        nextPhase: "image",
       });
     }
 

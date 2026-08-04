@@ -1,0 +1,1 @@
+ALTER TABLE "lesson_modules" ADD COLUMN "officer_scenes" jsonb;
