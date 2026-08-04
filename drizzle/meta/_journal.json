@@ -351,6 +351,13 @@
       "when": 1785859821310,
       "tag": "0049_broad_leper_queen",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1785865059726,
+      "tag": "0050_cynical_shatterstar",
+      "breakpoints": true
     }
   ]
 }
