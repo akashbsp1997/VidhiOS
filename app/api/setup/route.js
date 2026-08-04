@@ -27,14 +27,22 @@ import { csatQuantSyllabusSeed } from "../../../db/seed/csat-quant-syllabus.js";
 // editing those large existing files, so this route can insert/upsert them
 // alongside every other subject uniformly. subjectId is NOT NULL, so
 // omitting it here would fail the whole batch insert, not just those rows.
+// syllabusOrder: this subtopic's position within ITS OWN seed array
+// (0-based) -- every seed array below is already hand-ordered to match the
+// real official syllabus's own section-by-section sequence (see
+// db/schema.js's subtopics.syllabusOrder comment for why this matters more
+// than the computed difficultyScore for "what comes first"). Assigned per
+// source array, not across the concatenated whole -- orderSubtopicsWithinPaper
+// only ever compares subtopics within the same (subjectId, paper), so a
+// single array mixing paper 1/2 topics still orders correctly once filtered.
 const allSubtopicsSeed = [
-  ...syllabusSeed.map((s) => ({ ...s, subjectId: "law-optional" })),
-  ...gs2SyllabusSeed,
-  ...gs3SyllabusSeed,
-  ...gs1SyllabusSeed,
-  ...gs4SyllabusSeed,
-  ...politicalScienceSyllabusSeed,
-  ...csatQuantSyllabusSeed,
+  ...syllabusSeed.map((s, i) => ({ ...s, subjectId: "law-optional", syllabusOrder: i })),
+  ...gs2SyllabusSeed.map((s, i) => ({ ...s, syllabusOrder: i })),
+  ...gs3SyllabusSeed.map((s, i) => ({ ...s, syllabusOrder: i })),
+  ...gs1SyllabusSeed.map((s, i) => ({ ...s, syllabusOrder: i })),
+  ...gs4SyllabusSeed.map((s, i) => ({ ...s, syllabusOrder: i })),
+  ...politicalScienceSyllabusSeed.map((s, i) => ({ ...s, syllabusOrder: i })),
+  ...csatQuantSyllabusSeed.map((s, i) => ({ ...s, syllabusOrder: i })),
 ];
 const allPyqsSeed = [
   ...pyqsSeed.map((p) => ({ ...p, subjectId: "law-optional" })),
@@ -90,6 +98,7 @@ export async function GET(request) {
           section: sql`excluded.section`,
           topicText: sql`excluded.topic_text`,
           pyqFrequency: sql`excluded.pyq_frequency`,
+          syllabusOrder: sql`excluded.syllabus_order`,
         },
       });
     log.push(`OK  seed:subtopics (${allSubtopicsSeed.length})`);

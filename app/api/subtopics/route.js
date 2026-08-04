@@ -79,6 +79,7 @@ export async function GET(request) {
       section: s.section,
       topicText: s.topicText,
       pyqFrequency: s.pyqFrequency,
+      syllabusOrder: s.syllabusOrder,
       masteryScore: masteryBySubtopic[s.id]?.masteryScore ?? 0,
       currentTier: masteryBySubtopic[s.id]?.currentTier ?? 1,
       attemptsCount: masteryBySubtopic[s.id]?.attemptsCount ?? 0,
@@ -130,7 +131,14 @@ export async function GET(request) {
       const locks = computeSubtopicLocks(ordered, masteryScoreById);
       result.push(...ordered.map((s) => ({ ...s, ...locks.get(s.id) })));
     }
-    result.sort((a, b) => a.paper - b.paper || a.difficultyScore - b.difficultyScore || b.pyqFrequency - a.pyqFrequency || a.id.localeCompare(b.id));
+    result.sort(
+      (a, b) =>
+        a.paper - b.paper ||
+        (a.syllabusOrder ?? 0) - (b.syllabusOrder ?? 0) ||
+        a.difficultyScore - b.difficultyScore ||
+        b.pyqFrequency - a.pyqFrequency ||
+        a.id.localeCompare(b.id)
+    );
 
     // Surfaced here (rather than only as a 403 on the routes it blocks) so
     // the dashboard -- almost always the first thing loaded -- can explain
