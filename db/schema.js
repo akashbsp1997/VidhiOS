@@ -1110,6 +1110,21 @@ export const lessonModules = pgTable(
     // generate-once-cache-forever convention as storyScenes. Shape:
     // { sceneText, question, options: string[4], correctIndex, explanation }.
     sceneChallenge: jsonb("scene_challenge"),
+    // Courtroom Mode -- another OPTIONAL Remember-stage enrichment (see
+    // lib/ai/generateModules.js's generateModuleCourtroom), gated
+    // additionally (beyond the usual Remember-stage-unlocked check every
+    // other enrichment route already enforces) on this module's subtopic
+    // having at least one db/seed/cases.js casesSeed entry -- the existing
+    // signal tying a subtopic to real case law, reused rather than a new
+    // per-module AI classification (no such classification exists
+    // anywhere else in this app). Two labeled parties argue a real case,
+    // then a fixed verdict is pronounced -- pre-generated once, cached
+    // forever, same convention as storyScenes/sceneChallenge. Picking a
+    // side (components/CourtroomScene.jsx) is framing only -- both
+    // parties' arguments are always shown and the verdict never changes.
+    // Shape: { caseName, courtName, partyA: { label, arguments: string[] },
+    // partyB: { label, arguments: string[] }, verdict: { holding, reasoning } }.
+    courtroomScene: jsonb("courtroom_scene"),
     // Generated in the SAME Teach-phase AI call as teachContent/keyPoints
     // (see buildModuleTeachSystem) -- a short { date, label } sequence
     // extracted from this module's real content, ONLY when it's a genuine
