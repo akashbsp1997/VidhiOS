@@ -330,6 +330,13 @@
       "when": 1785858301536,
       "tag": "0046_silly_mephistopheles",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1785858585307,
+      "tag": "0047_shocking_captain_flint",
+      "breakpoints": true
     }
   ]
 }
